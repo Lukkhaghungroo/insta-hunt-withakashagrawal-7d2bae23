@@ -8,7 +8,7 @@ const ThemeToggle = () => {
   return (
     <label className="switch">
       <input 
-        checked={isDark} 
+        checked={!isDark} 
         id="theme-checkbox" 
         type="checkbox" 
         onChange={toggleTheme}
