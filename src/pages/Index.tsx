@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { Search, Download, Filter, Users, MapPin, Instagram, Loader2, Upload, ExternalLink, Copy, CheckCircle } from "lucide-react";
+import { Search, Download, Filter, Users, MapPin, Instagram, Loader2, Upload, ExternalLink, Copy, CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface InstagramLead {
   id: string;
@@ -17,6 +17,7 @@ interface InstagramLead {
   followers: number;
   category: string;
   city: string;
+  confidence: 'high' | 'medium' | 'low';
 }
 
 const Index = () => {
@@ -27,6 +28,7 @@ const Index = () => {
   const [minFollowers, setMinFollowers] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [leads, setLeads] = useState<InstagramLead[]>([]);
+  const [unconfirmedLeads, setUnconfirmedLeads] = useState<InstagramLead[]>([]);
   const [searchFilter, setSearchFilter] = useState("");
   const [sortBy, setSortBy] = useState<"followers" | "brandName">("followers");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -45,12 +47,14 @@ const Index = () => {
 
     const searchQuery = `site:instagram.com "${category.trim()}" "${city.trim()}"`;
     const encodedQuery = encodeURIComponent(searchQuery);
-    const url = `https://www.google.com/search?q=${encodedQuery}&num=100`;
+    // Add random parameters to avoid bot detection
+    const randomParam = Math.random().toString(36).substring(7);
+    const url = `https://www.google.com/search?q=${encodedQuery}&num=100&hl=en&safe=off&filter=0&pws=0&gl=us&uule=&lr=&cr=&tbs=&tbm=&source=lnt&sa=X&ved=&biw=1920&bih=1080&dpr=1&t=${Date.now()}&rand=${randomParam}`;
     
     setGeneratedUrl(url);
     toast({
       title: "Search URL Generated!",
-      description: "Copy the URL and use it in Google to scrape Instagram profiles."
+      description: "Copy the URL and use it in an incognito window to avoid bot detection."
     });
   };
 
@@ -61,7 +65,7 @@ const Index = () => {
       setTimeout(() => setUrlCopied(false), 2000);
       toast({
         title: "URL Copied!",
-        description: "The search URL has been copied to your clipboard."
+        description: "Use this URL in an incognito window with manual user-agent rotation."
       });
     } catch (error) {
       toast({
@@ -74,89 +78,109 @@ const Index = () => {
 
   const openInGoogle = () => {
     if (generatedUrl) {
-      window.open(generatedUrl, '_blank');
+      // Open in new incognito-style window to reduce bot detection
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.opener = null;
+        newWindow.location = generatedUrl;
+      }
     }
   };
 
-  const parseInstagramData = (data: string): InstagramLead[] => {
+  const parseInstagramData = (data: string): { confirmed: InstagramLead[], unconfirmed: InstagramLead[] } => {
     const lines = data.split('\n').filter(line => line.trim());
-    const leads: InstagramLead[] = [];
+    const confirmedLeads: InstagramLead[] = [];
+    const unconfirmedLeads: InstagramLead[] = [];
     const seenUrls = new Set<string>();
+    const seenProfiles = new Set<string>();
 
     lines.forEach((line, index) => {
-      // Try to extract Instagram URLs from various formats
-      const instagramUrlMatch = line.match(/https?:\/\/(?:www\.)?instagram\.com\/([^\/\s,"]+)/);
+      // Enhanced regex for better Instagram URL detection
+      const instagramUrlMatches = line.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:p\/[^\/\s,"]+|reel\/[^\/\s,"]+|[^\/\s,"]+)/g);
       
-      if (instagramUrlMatch) {
-        const fullUrl = instagramUrlMatch[0];
-        const userId = instagramUrlMatch[1];
-        
-        // Skip if we've already seen this URL
-        if (seenUrls.has(fullUrl)) return;
-        seenUrls.add(fullUrl);
+      if (instagramUrlMatches) {
+        instagramUrlMatches.forEach(fullUrl => {
+          const cleanUrl = fullUrl.split('?')[0].replace(/\/$/, '');
+          
+          // Skip if we've already seen this URL
+          if (seenUrls.has(cleanUrl)) return;
+          seenUrls.add(cleanUrl);
 
-        // Extract brand name (try to get from surrounding text)
-        let brandName = userId.replace(/_/g, ' ').replace(/\./g, ' ');
-        brandName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
+          let userId = '';
+          let brandName = '';
+          let confidence: 'high' | 'medium' | 'low' = 'medium';
 
-        // Try to extract follower count
-        let followers = 0;
-        const followerMatch = line.match(/([\d,]+\.?\d*)\s*(K|M|k|m)?\s*followers?/i);
-        if (followerMatch) {
-          let number = parseFloat(followerMatch[1].replace(/,/g, ''));
-          const unit = followerMatch[2]?.toUpperCase();
-          if (unit === 'K') number *= 1000;
-          if (unit === 'M') number *= 1000000;
-          followers = Math.round(number);
-        }
+          // Extract user ID and determine confidence
+          if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
+            // For posts/reels, try to extract username from context
+            const usernameMatch = line.match(/@([a-zA-Z0-9._]+)/);
+            if (usernameMatch) {
+              userId = usernameMatch[1];
+              confidence = 'low';
+            } else {
+              // Try to extract from surrounding text
+              const contextMatch = line.match(/instagram\.com\/([^\/\s,"]+)/);
+              if (contextMatch) {
+                userId = contextMatch[1];
+                confidence = 'low';
+              }
+            }
+          } else {
+            // Direct profile URL
+            const urlParts = cleanUrl.split('/');
+            userId = urlParts[3] || '';
+            confidence = 'high';
+          }
 
-        leads.push({
-          id: `${index}-${userId}`,
-          url: fullUrl,
-          brandName,
-          userId,
-          followers,
-          category,
-          city
+          // Skip if we've already processed this profile
+          if (seenProfiles.has(userId)) return;
+          seenProfiles.add(userId);
+
+          // Extract brand name
+          brandName = userId.replace(/_/g, ' ').replace(/\./g, ' ');
+          brandName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
+
+          // Try to extract follower count with better regex
+          let followers = 0;
+          const followerPatterns = [
+            /([\d,]+\.?\d*)\s*(K|M|k|m)?\s*followers?/i,
+            /([\d,]+\.?\d*)\s*(K|M|k|m)?\s*subscriber/i,
+            /(\d{1,3}(?:,\d{3})*)\s*followers?/i
+          ];
+
+          for (const pattern of followerPatterns) {
+            const followerMatch = line.match(pattern);
+            if (followerMatch) {
+              let number = parseFloat(followerMatch[1].replace(/,/g, ''));
+              const unit = followerMatch[2]?.toUpperCase();
+              if (unit === 'K') number *= 1000;
+              if (unit === 'M') number *= 1000000;
+              followers = Math.round(number);
+              break;
+            }
+          }
+
+          const lead: InstagramLead = {
+            id: `${index}-${userId}-${Date.now()}`,
+            url: cleanUrl,
+            brandName,
+            userId,
+            followers,
+            category,
+            city,
+            confidence
+          };
+
+          if (confidence === 'high' || confidence === 'medium') {
+            confirmedLeads.push(lead);
+          } else {
+            unconfirmedLeads.push(lead);
+          }
         });
       }
     });
 
-    return leads;
-  };
-
-  const cleanAndFilterData = () => {
-    if (!rawData.trim()) {
-      toast({
-        title: "No Data Found",
-        description: "Please paste your scraped data or upload a CSV file first.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-
-    // Simulate processing time
-    setTimeout(() => {
-      const parsedLeads = parseInstagramData(rawData);
-      
-      // Apply follower filter if specified
-      let filteredLeads = parsedLeads;
-      if (minFollowers && parseInt(minFollowers) > 0) {
-        filteredLeads = parsedLeads.filter(lead => 
-          lead.followers >= parseInt(minFollowers) || lead.followers === 0
-        );
-      }
-
-      setLeads(filteredLeads);
-      setIsProcessing(false);
-
-      toast({
-        title: "Data Processed Successfully!",
-        description: `Found ${filteredLeads.length} Instagram leads after cleaning and filtering.`
-      });
-    }, 2000);
+    return { confirmed: confirmedLeads, unconfirmed: unconfirmedLeads };
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,6 +197,46 @@ const Index = () => {
       });
     };
     reader.readAsText(file);
+  };
+
+  const cleanAndFilterData = () => {
+    if (!rawData.trim()) {
+      toast({
+        title: "No Data Found",
+        description: "Please paste your scraped data or upload a CSV file first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    setTimeout(() => {
+      const { confirmed, unconfirmed } = parseInstagramData(rawData);
+      
+      // Apply follower filter if specified
+      let filteredConfirmed = confirmed;
+      let filteredUnconfirmed = unconfirmed;
+      
+      if (minFollowers && parseInt(minFollowers) > 0) {
+        const minCount = parseInt(minFollowers);
+        filteredConfirmed = confirmed.filter(lead => 
+          lead.followers >= minCount || lead.followers === 0
+        );
+        filteredUnconfirmed = unconfirmed.filter(lead => 
+          lead.followers >= minCount || lead.followers === 0
+        );
+      }
+
+      setLeads(filteredConfirmed);
+      setUnconfirmedLeads(filteredUnconfirmed);
+      setIsProcessing(false);
+
+      toast({
+        title: "Data Processed Successfully!",
+        description: `Found ${filteredConfirmed.length} confirmed leads and ${filteredUnconfirmed.length} unconfirmed leads.`
+      });
+    }, 2000);
   };
 
   const formatFollowers = (count: number) => {
@@ -200,18 +264,38 @@ const Index = () => {
       }
     });
 
-  const handleExport = (format: "csv" | "excel") => {
-    const headers = ["Brand Name", "Instagram URL", "User ID", "Followers", "Category", "City"];
+  const filteredAndSortedUnconfirmed = unconfirmedLeads
+    .filter(lead => 
+      lead.brandName.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      lead.userId.toLowerCase().includes(searchFilter.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortBy === "followers") {
+        return sortOrder === "desc" ? b.followers - a.followers : a.followers - b.followers;
+      } else {
+        return sortOrder === "desc" 
+          ? b.brandName.localeCompare(a.brandName)
+          : a.brandName.localeCompare(b.brandName);
+      }
+    });
+
+  const handleExport = (format: "csv" | "excel", includeUnconfirmed: boolean = false) => {
+    const dataToExport = includeUnconfirmed 
+      ? [...filteredAndSortedLeads, ...filteredAndSortedUnconfirmed]
+      : filteredAndSortedLeads;
+
+    const headers = ["Brand Name", "Instagram URL", "User ID", "Followers", "Category", "City", "Confidence"];
     const csvData = [
       headers.join(","),
-      ...filteredAndSortedLeads.map(lead => 
+      ...dataToExport.map(lead => 
         [
           `"${lead.brandName}"`,
           lead.url,
           lead.userId,
           lead.followers,
           `"${lead.category}"`,
-          `"${lead.city}"`
+          `"${lead.city}"`,
+          lead.confidence
         ].join(",")
       )
     ].join("\n");
@@ -220,31 +304,34 @@ const Index = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `instagram-leads-${category}-${city}.${format === "csv" ? "csv" : "xlsx"}`;
+    a.download = `instagram-leads-${category}-${city}-${includeUnconfirmed ? 'all' : 'confirmed'}.${format === "csv" ? "csv" : "xlsx"}`;
     a.click();
     window.URL.revokeObjectURL(url);
 
     toast({
       title: "Export Complete!",
-      description: `Downloaded ${filteredAndSortedLeads.length} leads as ${format.toUpperCase()}.`
+      description: `Downloaded ${dataToExport.length} leads as ${format.toUpperCase()}.`
     });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="glass border-b border-white/20 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-3 rounded-xl">
-              <Instagram className="h-8 w-8 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-3 rounded-xl">
+                <Instagram className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                  Instagram Lead Finder Pro
+                </h1>
+                <p className="text-white/80 mt-1">Advanced semi-automated lead generation with smart parsing</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                Instagram Lead Finder (Semi-Auto)
-              </h1>
-              <p className="text-gray-600 mt-1">Generate search URLs, scrape manually, then clean and export leads</p>
-            </div>
+            <ThemeToggle />
           </div>
         </div>
       </div>
@@ -252,20 +339,20 @@ const Index = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         {/* Step 1: URL Generation */}
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <Card className="glass border-white/20">
           <CardHeader className="pb-4">
-            <CardTitle className="flex items-center space-x-2">
-              <Search className="h-5 w-5 text-blue-600" />
+            <CardTitle className="flex items-center space-x-2 text-white">
+              <Search className="h-5 w-5 text-blue-400" />
               <span>Step 1: Generate Search URL</span>
             </CardTitle>
-            <CardDescription>
-              Enter your search criteria to generate a Google search URL for Instagram profiles
+            <CardDescription className="text-white/70">
+              Enter your search criteria to generate a bot-resistant Google search URL
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                <label className="text-sm font-medium text-white/90 flex items-center space-x-2">
                   <Users className="h-4 w-4" />
                   <span>Business Category</span>
                 </label>
@@ -273,11 +360,11 @@ const Index = () => {
                   placeholder="e.g., Skin Clinic, Restaurant, Gym"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  className="glass border-white/30 text-white placeholder:text-white/50"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                <label className="text-sm font-medium text-white/90 flex items-center space-x-2">
                   <MapPin className="h-4 w-4" />
                   <span>City</span>
                 </label>
@@ -285,13 +372,13 @@ const Index = () => {
                   placeholder="e.g., Mumbai, Delhi, Bangalore"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  className="glass border-white/30 text-white placeholder:text-white/50"
                 />
               </div>
               <div className="flex items-end">
                 <Button 
                   onClick={generateSearchUrl}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-2.5"
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2.5"
                 >
                   <Search className="h-4 w-4 mr-2" />
                   Generate Search URL
@@ -300,35 +387,35 @@ const Index = () => {
             </div>
 
             {generatedUrl && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <label className="text-sm font-medium text-blue-900 mb-2 block">Generated Search URL:</label>
+              <div className="mt-6 p-4 glass rounded-lg border border-blue-400/30">
+                <label className="text-sm font-medium text-blue-200 mb-2 block">Generated Search URL:</label>
                 <div className="flex items-center space-x-2">
                   <Input
                     value={generatedUrl}
                     readOnly
-                    className="flex-1 bg-white border-blue-300 text-sm"
+                    className="flex-1 glass border-blue-400/30 text-white text-sm"
                   />
                   <Button
                     onClick={copyUrl}
                     variant="outline"
                     size="sm"
-                    className="flex items-center space-x-1"
+                    className="flex items-center space-x-1 glass border-white/30 text-white hover:bg-white/10"
                   >
-                    {urlCopied ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    {urlCopied ? <CheckCircle className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
                     <span>{urlCopied ? "Copied!" : "Copy"}</span>
                   </Button>
                   <Button
                     onClick={openInGoogle}
                     variant="outline"
                     size="sm"
-                    className="flex items-center space-x-1"
+                    className="flex items-center space-x-1 glass border-white/30 text-white hover:bg-white/10"
                   >
                     <ExternalLink className="h-4 w-4" />
-                    <span>Open in Google</span>
+                    <span>Open</span>
                   </Button>
                 </div>
-                <p className="text-xs text-blue-700 mt-2">
-                  💡 Use this URL in Google, then scrape all Instagram links using Instant Data Scraper or similar extension. Navigate through all result pages for complete data.
+                <p className="text-xs text-blue-200 mt-2">
+                  💡 Use in incognito mode with random delays between page loads. URL includes anti-bot parameters.
                 </p>
               </div>
             )}
@@ -336,32 +423,32 @@ const Index = () => {
         </Card>
 
         {/* Step 2: Data Input */}
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <Card className="glass border-white/20">
           <CardHeader className="pb-4">
-            <CardTitle className="flex items-center space-x-2">
-              <Upload className="h-5 w-5 text-green-600" />
+            <CardTitle className="flex items-center space-x-2 text-white">
+              <Upload className="h-5 w-5 text-green-400" />
               <span>Step 2: Upload Scraped Data</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-white/70">
               Paste your scraped data or upload a CSV file from your scraping extension
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Paste Scraped Data Here:</label>
+                <label className="text-sm font-medium text-white/90">Paste Scraped Data Here:</label>
                 <Textarea
                   placeholder="Paste your scraped Instagram data here (URLs, brand names, follower counts, etc.)"
                   value={rawData}
                   onChange={(e) => setRawData(e.target.value)}
-                  className="h-32 resize-none"
+                  className="h-32 resize-none glass border-white/30 text-white placeholder:text-white/50"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Or Upload CSV File:</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
-                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-2">Drag & drop your CSV file here</p>
+                <label className="text-sm font-medium text-white/90">Or Upload CSV File:</label>
+                <div className="border-2 border-dashed border-white/30 rounded-lg p-8 text-center hover:border-white/50 transition-colors glass">
+                  <Upload className="h-8 w-8 text-white/60 mx-auto mb-2" />
+                  <p className="text-sm text-white/70 mb-2">Drag & drop your CSV file here</p>
                   <input
                     type="file"
                     accept=".csv,.txt"
@@ -370,7 +457,7 @@ const Index = () => {
                     id="file-upload"
                   />
                   <label htmlFor="file-upload">
-                    <Button variant="outline" size="sm" className="cursor-pointer">
+                    <Button variant="outline" size="sm" className="cursor-pointer glass border-white/30 text-white hover:bg-white/10">
                       Choose File
                     </Button>
                   </label>
@@ -380,19 +467,19 @@ const Index = () => {
             
             <div className="flex items-center space-x-4 pt-4">
               <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700">Minimum Followers (optional):</label>
+                <label className="text-sm font-medium text-white/90">Minimum Followers (optional):</label>
                 <Input
                   type="number"
                   placeholder="1000"
                   value={minFollowers}
                   onChange={(e) => setMinFollowers(e.target.value)}
-                  className="w-32"
+                  className="w-32 glass border-white/30 text-white placeholder:text-white/50"
                 />
               </div>
               <Button
                 onClick={cleanAndFilterData}
                 disabled={isProcessing || !rawData.trim()}
-                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
               >
                 {isProcessing ? (
                   <>
@@ -411,145 +498,218 @@ const Index = () => {
         </Card>
 
         {/* Results Section */}
-        {leads.length > 0 && (
-          <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
-            <CardHeader className="pb-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-                <div className="flex items-center space-x-4">
-                  <CardTitle className="flex items-center space-x-2">
-                    <Instagram className="h-5 w-5 text-purple-600" />
-                    <span>Step 3: Clean Results</span>
-                  </CardTitle>
-                  <Badge variant="secondary" className="px-3 py-1">
-                    {filteredAndSortedLeads.length} leads found
-                  </Badge>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="relative">
-                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Filter by name or username..."
-                      value={searchFilter}
-                      onChange={(e) => setSearchFilter(e.target.value)}
-                      className="pl-10 w-64"
-                    />
+        {(leads.length > 0 || unconfirmedLeads.length > 0) && (
+          <>
+            {/* Confirmed Results */}
+            <Card className="glass border-white/20">
+              <CardHeader className="pb-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+                  <div className="flex items-center space-x-4">
+                    <CardTitle className="flex items-center space-x-2 text-white">
+                      <Instagram className="h-5 w-5 text-green-400" />
+                      <span>Confirmed Results</span>
+                    </CardTitle>
+                    <Badge variant="secondary" className="px-3 py-1 bg-green-500/20 text-green-300">
+                      {filteredAndSortedLeads.length} high-confidence leads
+                    </Badge>
                   </div>
                   
-                  <Button
-                    variant="outline"
-                    onClick={() => handleExport("csv")}
-                    className="flex items-center space-x-2 hover:bg-green-50 hover:border-green-300"
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>Export CSV</span>
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={() => handleExport("excel")}
-                    className="flex items-center space-x-2 hover:bg-blue-50 hover:border-blue-300"
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>Export Excel</span>
-                  </Button>
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/60" />
+                      <Input
+                        placeholder="Filter by name or username..."
+                        value={searchFilter}
+                        onChange={(e) => setSearchFilter(e.target.value)}
+                        className="pl-10 w-64 glass border-white/30 text-white placeholder:text-white/50"
+                      />
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={() => handleExport("csv", false)}
+                      className="flex items-center space-x-2 glass border-white/30 text-white hover:bg-white/10"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>Export CSV</span>
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50/80">
-                      <TableHead 
-                        className="cursor-pointer hover:bg-gray-100 transition-colors font-semibold"
-                        onClick={() => {
-                          if (sortBy === "brandName") {
-                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                          } else {
-                            setSortBy("brandName");
-                            setSortOrder("asc");
-                          }
-                        }}
-                      >
-                        Brand Name {sortBy === "brandName" && (sortOrder === "asc" ? "↑" : "↓")}
-                      </TableHead>
-                      <TableHead>Instagram Profile</TableHead>
-                      <TableHead>Username</TableHead>
-                      <TableHead 
-                        className="cursor-pointer hover:bg-gray-100 transition-colors font-semibold"
-                        onClick={() => {
-                          if (sortBy === "followers") {
-                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                          } else {
-                            setSortBy("followers");
-                            setSortOrder("desc");
-                          }
-                        }}
-                      >
-                        Followers {sortBy === "followers" && (sortOrder === "asc" ? "↑" : "↓")}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAndSortedLeads.map((lead) => (
-                      <TableRow key={lead.id} className="hover:bg-blue-50/50 transition-colors">
-                        <TableCell className="font-medium">{lead.brandName}</TableCell>
-                        <TableCell>
-                          <a 
-                            href={lead.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-2"
-                          >
-                            <Instagram className="h-4 w-4" />
-                            <span>View Profile</span>
-                          </a>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">@{lead.userId}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <span className="font-semibold">{formatFollowers(lead.followers)}</span>
-                            {lead.followers > 0 && (
-                              <Badge 
-                                variant={lead.followers > 20000 ? "default" : lead.followers > 10000 ? "secondary" : "outline"}
-                                className="text-xs"
-                              >
-                                {lead.followers > 20000 ? "High" : lead.followers > 10000 ? "Medium" : "Low"}
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="glass border-white/20">
+                        <TableHead 
+                          className="cursor-pointer hover:bg-white/10 transition-colors font-semibold text-white/90"
+                          onClick={() => {
+                            if (sortBy === "brandName") {
+                              setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                            } else {
+                              setSortBy("brandName");
+                              setSortOrder("asc");
+                            }
+                          }}
+                        >
+                          Brand Name {sortBy === "brandName" && (sortOrder === "asc" ? "↑" : "↓")}
+                        </TableHead>
+                        <TableHead className="text-white/90">Instagram Profile</TableHead>
+                        <TableHead className="text-white/90">Username</TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-white/10 transition-colors font-semibold text-white/90"
+                          onClick={() => {
+                            if (sortBy === "followers") {
+                              setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                            } else {
+                              setSortBy("followers");
+                              setSortOrder("desc");
+                            }
+                          }}
+                        >
+                          Followers {sortBy === "followers" && (sortOrder === "asc" ? "↑" : "↓")}
+                        </TableHead>
+                        <TableHead className="text-white/90">Confidence</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAndSortedLeads.map((lead) => (
+                        <TableRow key={lead.id} className="hover:bg-white/5 transition-colors border-white/10">
+                          <TableCell className="font-medium text-white">{lead.brandName}</TableCell>
+                          <TableCell>
+                            <a 
+                              href={lead.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 hover:underline flex items-center space-x-2"
+                            >
+                              <Instagram className="h-4 w-4" />
+                              <span>View Profile</span>
+                            </a>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm text-white/80">@{lead.userId}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold text-white">{formatFollowers(lead.followers)}</span>
+                              {lead.followers > 0 && (
+                                <Badge 
+                                  variant={lead.followers > 20000 ? "default" : lead.followers > 10000 ? "secondary" : "outline"}
+                                  className="text-xs"
+                                >
+                                  {lead.followers > 20000 ? "High" : lead.followers > 10000 ? "Medium" : "Low"}
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={lead.confidence === 'high' ? 'default' : 'secondary'}
+                              className={lead.confidence === 'high' ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}
+                            >
+                              {lead.confidence}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Unconfirmed Results */}
+            {unconfirmedLeads.length > 0 && (
+              <Card className="glass border-yellow-400/30">
+                <CardHeader className="pb-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+                    <div className="flex items-center space-x-4">
+                      <CardTitle className="flex items-center space-x-2 text-white">
+                        <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                        <span>Unconfirmed Results</span>
+                      </CardTitle>
+                      <Badge variant="secondary" className="px-3 py-1 bg-yellow-500/20 text-yellow-300">
+                        {filteredAndSortedUnconfirmed.length} low-confidence leads
+                      </Badge>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={() => handleExport("csv", true)}
+                      className="flex items-center space-x-2 glass border-yellow-400/30 text-yellow-300 hover:bg-yellow-400/10"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>Export All</span>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="glass border-yellow-400/20">
+                          <TableHead className="text-white/90">Brand Name</TableHead>
+                          <TableHead className="text-white/90">Instagram Profile</TableHead>
+                          <TableHead className="text-white/90">Username</TableHead>
+                          <TableHead className="text-white/90">Followers</TableHead>
+                          <TableHead className="text-white/90">Confidence</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredAndSortedUnconfirmed.map((lead) => (
+                          <TableRow key={lead.id} className="hover:bg-yellow-400/5 transition-colors border-yellow-400/10">
+                            <TableCell className="font-medium text-white">{lead.brandName}</TableCell>
+                            <TableCell>
+                              <a 
+                                href={lead.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-yellow-400 hover:text-yellow-300 hover:underline flex items-center space-x-2"
+                              >
+                                <Instagram className="h-4 w-4" />
+                                <span>View Profile</span>
+                              </a>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm text-white/80">@{lead.userId}</TableCell>
+                            <TableCell>
+                              <span className="font-semibold text-white">{formatFollowers(lead.followers)}</span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="bg-yellow-500/20 text-yellow-300 border-yellow-400/30">
+                                {lead.confidence}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
 
         {/* Empty State */}
-        {leads.length === 0 && !isProcessing && (
-          <Card className="text-center py-12 bg-white/60 backdrop-blur-sm border-dashed border-2 border-gray-300">
+        {leads.length === 0 && unconfirmedLeads.length === 0 && !isProcessing && (
+          <Card className="text-center py-12 glass border-white/20 border-dashed border-2">
             <CardContent>
-              <Instagram className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Ready to Find Instagram Leads</h3>
-              <p className="text-gray-500 mb-6">
+              <Instagram className="h-16 w-16 text-white/60 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">Ready to Find Instagram Leads</h3>
+              <p className="text-white/70 mb-6">
                 Follow the 3-step process: Generate URL → Scrape Data → Clean & Export
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto text-sm text-gray-600">
-                <div className="bg-white/80 p-4 rounded-lg border">
-                  <div className="font-medium text-blue-600 mb-1">🔗 Step 1: Generate URL</div>
-                  <div>Create targeted Google search URLs</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto text-sm text-white/70">
+                <div className="glass p-4 rounded-lg border border-white/20">
+                  <div className="font-medium text-blue-300 mb-1">🔗 Step 1: Generate URL</div>
+                  <div>Create bot-resistant Google search URLs</div>
                 </div>
-                <div className="bg-white/80 p-4 rounded-lg border">
-                  <div className="font-medium text-green-600 mb-1">📊 Step 2: Scrape Data</div>
-                  <div>Use browser extensions to collect data</div>
+                <div className="glass p-4 rounded-lg border border-white/20">
+                  <div className="font-medium text-green-300 mb-1">📊 Step 2: Scrape Data</div>
+                  <div>Use browser extensions to collect data safely</div>
                 </div>
-                <div className="bg-white/80 p-4 rounded-lg border">
-                  <div className="font-medium text-purple-600 mb-1">🧹 Step 3: Clean & Export</div>
-                  <div>Process and export clean lead lists</div>
+                <div className="glass p-4 rounded-lg border border-white/20">
+                  <div className="font-medium text-purple-300 mb-1">🧹 Step 3: Clean & Export</div>
+                  <div>Process and export clean lead lists with confidence scoring</div>
                 </div>
               </div>
             </CardContent>
