@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Search, Download, Filter, Users, MapPin, Instagram, Loader2, Upload, ExternalLink, Copy, CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const Index = () => {
   const [sortBy, setSortBy] = useState<"followers" | "brandName">("followers");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [urlCopied, setUrlCopied] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const { toast } = useToast();
 
   const generateSearchUrl = () => {
@@ -187,13 +189,76 @@ const Index = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a CSV or TXT file.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
       setRawData(content);
       toast({
-        title: "File Uploaded",
-        description: "CSV file has been loaded. Click 'Clean & Filter Data' to process."
+        title: "File Uploaded Successfully",
+        description: `${file.name} has been loaded. Click 'Clean & Filter Data' to process.`
+      });
+    };
+    reader.onerror = () => {
+      toast({
+        title: "Upload Failed",
+        description: "There was an error reading the file. Please try again.",
+        variant: "destructive"
+      });
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    const file = files[0];
+    
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a CSV or TXT file.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setRawData(content);
+      toast({
+        title: "File Uploaded Successfully",
+        description: `${file.name} has been loaded. Click 'Clean & Filter Data' to process.`
+      });
+    };
+    reader.onerror = () => {
+      toast({
+        title: "Upload Failed",
+        description: "There was an error reading the file. Please try again.",
+        variant: "destructive"
       });
     };
     reader.readAsText(file);
@@ -446,9 +511,20 @@ const Index = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white/90">Or Upload CSV File:</label>
-                <div className="border-2 border-dashed border-white/30 rounded-lg p-8 text-center hover:border-white/50 transition-colors glass">
-                  <Upload className="h-8 w-8 text-white/60 mx-auto mb-2" />
-                  <p className="text-sm text-white/70 mb-2">Drag & drop your CSV file here</p>
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-all glass ${
+                    isDragOver 
+                      ? 'border-blue-400 bg-blue-400/10' 
+                      : 'border-white/30 hover:border-white/50'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragOver ? 'text-blue-400' : 'text-white/60'}`} />
+                  <p className="text-sm text-white/70 mb-2">
+                    {isDragOver ? 'Drop your file here' : 'Drag & drop your CSV file here'}
+                  </p>
                   <input
                     type="file"
                     accept=".csv,.txt"
@@ -461,6 +537,7 @@ const Index = () => {
                       Choose File
                     </Button>
                   </label>
+                  <p className="text-xs text-white/50 mt-2">CSV or TXT files only</p>
                 </div>
               </div>
             </div>
