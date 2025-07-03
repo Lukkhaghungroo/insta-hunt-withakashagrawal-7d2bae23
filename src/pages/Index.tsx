@@ -75,7 +75,7 @@ const Index = () => {
       return;
     }
 
-    // Advanced bot-resistant URL generation
+    // Advanced bot-resistant URL generation with Indian geo-targeting
     const searchTerms = [
       `site:instagram.com "${category.trim()}" "${city.trim()}"`,
       `site:instagram.com ${category.trim()} ${city.trim()}`,
@@ -86,7 +86,7 @@ const Index = () => {
     const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
     const encodedQuery = encodeURIComponent(randomTerm);
     
-    // Advanced anti-bot parameters
+    // Advanced anti-bot parameters with Indian geo-targeting
     const userAgents = [
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
@@ -94,14 +94,14 @@ const Index = () => {
     ];
     
     const randomParams = {
-      num: Math.floor(Math.random() * 50) + 50, // 50-100 results
-      hl: ['en', 'en-US', 'en-GB'][Math.floor(Math.random() * 3)],
+      num: Math.floor(Math.random() * 11) + 89, // 89-99 results
+      hl: 'en-IN', // English India
       safe: 'off',
       filter: '0',
       pws: '0',
-      gl: ['us', 'gb', 'ca'][Math.floor(Math.random() * 3)],
-      lr: '',
-      cr: '',
+      gl: 'in', // India geo-location
+      lr: 'lang_hi|lang_en', // Hindi and English languages
+      cr: 'countryIN', // India country restriction
       tbs: '',
       tbm: '',
       source: 'lnt',
@@ -123,12 +123,12 @@ const Index = () => {
       .map(([key, value]) => `${key}=${value}`)
       .join('&');
     
-    const url = `https://www.google.com/search?q=${encodedQuery}&${paramString}`;
+    const url = `https://www.google.co.in/search?q=${encodedQuery}&${paramString}`;
     
     setGeneratedUrl(url);
     toast({
-      title: "Advanced Search URL Generated!",
-      description: "URL includes randomized parameters to avoid detection. Use in incognito mode with VPN for best results.",
+      title: "India-Targeted Search URL Generated!",
+      description: "URL optimized for Indian geo-targeting with 89-99 results. Use with VPN for best results.",
     });
   };
 
