@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { InstagramLead } from '@/types/InstagramLead';
 
 interface DataHistoryItem {
   id: string;
-  timestamp: Date | string;
+  timestamp: Date;
   category: string;
   city: string;
   confirmedCount: number;
@@ -32,76 +32,65 @@ const DataHistory: React.FC<DataHistoryProps> = ({
   onDeleteItem,
   onExportItem
 }) => {
-  // Memoized date formatting for performance
-  const formatDate = useMemo(() => {
-    return (date: Date | string) => {
-      const dateObj = new Date(date);
-      return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }).format(dateObj);
-    };
-  }, []);
-
   if (history.length === 0) {
     return (
-      <Card className="glass border-white/20 dark:border-white/20 border-gray-200">
+      <Card className="glass border-white/20">
         <CardContent className="text-center py-8">
-          <Database className="h-12 w-12 text-black/40 dark:text-white/40 mx-auto mb-4" />
-          <p className="text-black/70 dark:text-white/70">No past data found. Start by cleaning your first dataset!</p>
+          <Database className="h-12 w-12 text-white/40 mx-auto mb-4" />
+          <p className="text-white/70">No past data found. Start by cleaning your first dataset!</p>
         </CardContent>
       </Card>
     );
   }
 
-  const handleDeleteWithConfirmation = (id: string, categoryCity: string) => {
-    if (window.confirm(`Are you sure you want to delete the data for "${categoryCity}"? This action cannot be undone.`)) {
-      onDeleteItem(id);
-    }
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
   };
 
   return (
-    <Card className="glass border-white/20 dark:border-white/20 border-gray-200">
+    <Card className="glass border-white/20">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2 text-black dark:text-white">
+        <CardTitle className="flex items-center space-x-2 text-white">
           <Clock className="h-5 w-5 text-purple-400" />
           <span>Data History</span>
-          <Badge variant="secondary" className="bg-purple-500/20 text-purple-600 dark:text-purple-300">
+          <Badge variant="secondary" className="bg-purple-500/20 text-purple-300">
             {history.length} saved
           </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {history.map((item) => (
-          <div key={item.id} className="glass rounded-lg p-4 border border-white/10 dark:border-white/10 border-gray-200 hover:border-purple-400/30 transition-all">
+          <div key={item.id} className="glass rounded-lg p-4 border border-white/10 hover:border-purple-400/30 transition-all">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h4 className="font-semibold text-black dark:text-white">{item.category} - {item.city}</h4>
-                <p className="text-sm text-black/60 dark:text-white/60 flex items-center space-x-2">
+                <h4 className="font-semibold text-white">{item.category} - {item.city}</h4>
+                <p className="text-sm text-white/60 flex items-center space-x-2">
                   <Clock className="h-3 w-3" />
                   <span>{formatDate(item.timestamp)}</span>
                 </p>
               </div>
-              <div className="flex items-center space-x-2 flex-wrap">
-                <Badge variant="default" className="bg-green-500/20 text-green-600 dark:text-green-300">
+              <div className="flex items-center space-x-2">
+                <Badge variant="default" className="bg-green-500/20 text-green-300">
                   {item.confirmedCount} confirmed
                 </Badge>
                 {item.unconfirmedCount > 0 && (
-                  <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 dark:text-yellow-300">
+                  <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300">
                     {item.unconfirmedCount} unconfirmed
                   </Badge>
                 )}
               </div>
             </div>
             
-            <div className="flex items-center space-x-2 flex-wrap gap-2">
+            <div className="flex items-center space-x-2">
               <Button
                 size="sm"
                 onClick={() => onLoadData(item)}
                 className="bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white"
-                aria-label={`Load data for ${item.category} - ${item.city}`}
               >
                 Load Data
               </Button>
@@ -109,8 +98,7 @@ const DataHistory: React.FC<DataHistoryProps> = ({
                 size="sm"
                 variant="outline"
                 onClick={() => onExportItem(item, false)}
-                className="glass border-white/30 dark:border-white/30 border-gray-300 text-black dark:text-white hover:bg-white/10 dark:hover:bg-white/10 hover:bg-gray-100"
-                aria-label={`Export confirmed leads for ${item.category} - ${item.city}`}
+                className="glass border-white/30 text-white hover:bg-white/10"
               >
                 <Download className="h-3 w-3 mr-1" />
                 Export
@@ -120,8 +108,7 @@ const DataHistory: React.FC<DataHistoryProps> = ({
                   size="sm"
                   variant="outline"
                   onClick={() => onExportItem(item, true)}
-                  className="glass border-yellow-400/30 text-yellow-600 dark:text-yellow-300 hover:bg-yellow-400/10"
-                  aria-label={`Export all leads (including unconfirmed) for ${item.category} - ${item.city}`}
+                  className="glass border-yellow-400/30 text-yellow-300 hover:bg-yellow-400/10"
                 >
                   <Download className="h-3 w-3 mr-1" />
                   Export All
@@ -130,9 +117,8 @@ const DataHistory: React.FC<DataHistoryProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => handleDeleteWithConfirmation(item.id, `${item.category} - ${item.city}`)}
-                className="glass border-red-400/30 text-red-600 dark:text-red-300 hover:bg-red-400/10"
-                aria-label={`Delete data for ${item.category} - ${item.city}`}
+                onClick={() => onDeleteItem(item.id)}
+                className="glass border-red-400/30 text-red-300 hover:bg-red-400/10"
               >
                 <Trash2 className="h-3 w-3" />
               </Button>
