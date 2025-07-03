@@ -75,60 +75,17 @@ const Index = () => {
       return;
     }
 
-    // Enhanced bot-resistant URL generation for India
-    const searchTerms = [
-      `site:instagram.com "${category.trim()}" "${city.trim()}"`,
-      `site:instagram.com ${category.trim()} ${city.trim()}`,
-      `"${category.trim()}" "${city.trim()}" site:instagram.com`,
-      `${category.trim()} ${city.trim()} instagram.com`
-    ];
+    // Generate Ecosia-optimized search URL
+    const searchQuery = `site:instagram.com "${category.trim()}" "${city.trim()}"`;
+    const encodedQuery = encodeURIComponent(searchQuery);
     
-    const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
-    const encodedQuery = encodeURIComponent(randomTerm);
-    
-    // India-specific anti-bot parameters
-    const userAgents = [
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
-    ];
-    
-    const randomParams = {
-      num: Math.floor(Math.random() * 11) + 89, // 89-99 results
-      hl: ['hi', 'en-IN', 'en'][Math.floor(Math.random() * 3)],
-      safe: 'off',
-      filter: '0',
-      pws: '0',
-      gl: 'in', // India geo-location
-      lr: 'lang_hi|lang_en',
-      cr: 'countryIN',
-      tbs: '',
-      tbm: '',
-      source: 'lnt',
-      sa: 'X',
-      ved: '',
-      biw: 1920,
-      bih: 1080,
-      dpr: 1,
-      t: Date.now(),
-      rand: Math.random().toString(36).substring(7),
-      ie: 'UTF-8',
-      oe: 'UTF-8',
-      client: 'ubuntu',
-      channel: 'fs',
-      usg: Math.random().toString(36).substring(7)
-    };
-    
-    const paramString = Object.entries(randomParams)
-      .map(([key, value]) => `${key}=${value}`)
-      .join('&');
-    
-    const url = `https://www.google.co.in/search?q=${encodedQuery}&${paramString}`;
+    // Create Ecosia search URL
+    const url = `https://www.ecosia.org/search?q=${encodedQuery}`;
     
     setGeneratedUrl(url);
     toast({
-      title: "India-Optimized Search URL Generated!",
-      description: "URL optimized for Indian geo-location with randomized parameters (89-99 results per search).",
+      title: "Ecosia Search URL Generated!",
+      description: "URL optimized for Ecosia search engine with eco-friendly search.",
     });
   };
 
@@ -139,7 +96,7 @@ const Index = () => {
       setTimeout(() => setUrlCopied(false), 2000);
       toast({
         title: "URL Copied!",
-        description: "Use this URL in an incognito window with manual user-agent rotation."
+        description: "Use this URL in Ecosia to search for Instagram leads."
       });
     } catch (error) {
       toast({
@@ -150,9 +107,8 @@ const Index = () => {
     }
   };
 
-  const openInGoogle = () => {
+  const openInEcosia = () => {
     if (generatedUrl) {
-      // Open in new incognito-style window to reduce bot detection
       const newWindow = window.open();
       if (newWindow) {
         newWindow.opener = null;
@@ -568,11 +524,11 @@ const Index = () => {
             <Card className="glass border-white/20 dark:border-white/20 border-gray-200 gothic-border">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center space-x-2 text-gray-800 dark:text-white gothic-glow">
-                  <Search className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  <span>Step 1: Generate Advanced Search URL</span>
+                  <Search className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <span>Step 1: Generate Ecosia Search URL</span>
                 </CardTitle>
                 <CardDescription className="text-gray-600 dark:text-white/70">
-                  Generate bot-resistant Google search URLs with randomized parameters (India-optimized)
+                  Generate eco-friendly search URLs optimized for Ecosia search engine
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -604,22 +560,22 @@ const Index = () => {
                   <div className="flex items-end">
                     <Button 
                       onClick={generateSearchUrl}
-                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2.5"
+                      className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-medium py-2.5"
                     >
                       <Search className="h-4 w-4 mr-2" />
-                      Generate Search URL
+                      Generate Ecosia URL
                     </Button>
                   </div>
                 </div>
 
                 {generatedUrl && (
-                  <div className="mt-6 p-4 glass rounded-lg border border-purple-400/30 gothic-border">
-                    <label className="text-sm font-medium text-purple-600 dark:text-purple-200 mb-2 block gothic-accent">Advanced Search URL (India-Optimized):</label>
+                  <div className="mt-6 p-4 glass rounded-lg border border-green-400/30 gothic-border">
+                    <label className="text-sm font-medium text-green-600 dark:text-green-200 mb-2 block gothic-accent">Ecosia Search URL (Eco-Friendly):</label>
                     <div className="flex items-center space-x-2">
                       <Input
                         value={generatedUrl}
                         readOnly
-                        className="flex-1 glass border-purple-400/30 text-gray-800 dark:text-white text-sm"
+                        className="flex-1 glass border-green-400/30 text-gray-800 dark:text-white text-sm"
                       />
                       <Button
                         onClick={copyUrl}
@@ -631,7 +587,7 @@ const Index = () => {
                         <span>{urlCopied ? "Copied!" : "Copy"}</span>
                       </Button>
                       <Button
-                        onClick={openInGoogle}
+                        onClick={openInEcosia}
                         variant="outline"
                         size="sm"
                         className="flex items-center space-x-1 glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
@@ -640,8 +596,8 @@ const Index = () => {
                         <span>Open</span>
                       </Button>
                     </div>
-                    <p className="text-xs text-purple-600 dark:text-purple-200 mt-2">
-                      💡 Use in incognito mode with random delays. URL targets India (89-99 results per search).
+                    <p className="text-xs text-green-600 dark:text-green-200 mt-2">
+                      🌱 Using Ecosia helps plant trees while you search for leads!
                     </p>
                   </div>
                 )}
