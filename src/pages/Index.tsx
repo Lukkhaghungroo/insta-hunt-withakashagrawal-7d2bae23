@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Download, Filter, Users, MapPin, Instagram, Loader2, Upload, ExternalLink, Copy, CheckCircle, AlertTriangle, History } from "lucide-react";
+import { Search, Download, Filter, Users, MapPin, Instagram, Loader2, Upload, ExternalLink, Copy, CheckCircle, AlertTriangle, History, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,7 +75,7 @@ const Index = () => {
       return;
     }
 
-    // Advanced bot-resistant URL generation
+    // Enhanced bot-resistant URL generation for India
     const searchTerms = [
       `site:instagram.com "${category.trim()}" "${city.trim()}"`,
       `site:instagram.com ${category.trim()} ${city.trim()}`,
@@ -86,7 +86,7 @@ const Index = () => {
     const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
     const encodedQuery = encodeURIComponent(randomTerm);
     
-    // Advanced anti-bot parameters
+    // India-specific anti-bot parameters
     const userAgents = [
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
@@ -94,14 +94,14 @@ const Index = () => {
     ];
     
     const randomParams = {
-      num: Math.floor(Math.random() * 50) + 50, // 50-100 results
-      hl: ['en', 'en-US', 'en-GB'][Math.floor(Math.random() * 3)],
+      num: Math.floor(Math.random() * 11) + 89, // 89-99 results
+      hl: ['hi', 'en-IN', 'en'][Math.floor(Math.random() * 3)],
       safe: 'off',
       filter: '0',
       pws: '0',
-      gl: ['us', 'gb', 'ca'][Math.floor(Math.random() * 3)],
-      lr: '',
-      cr: '',
+      gl: 'in', // India geo-location
+      lr: 'lang_hi|lang_en',
+      cr: 'countryIN',
       tbs: '',
       tbm: '',
       source: 'lnt',
@@ -123,12 +123,12 @@ const Index = () => {
       .map(([key, value]) => `${key}=${value}`)
       .join('&');
     
-    const url = `https://www.google.com/search?q=${encodedQuery}&${paramString}`;
+    const url = `https://www.google.co.in/search?q=${encodedQuery}&${paramString}`;
     
     setGeneratedUrl(url);
     toast({
-      title: "Advanced Search URL Generated!",
-      description: "URL includes randomized parameters to avoid detection. Use in incognito mode with VPN for best results.",
+      title: "India-Optimized Search URL Generated!",
+      description: "URL optimized for Indian geo-location with randomized parameters (89-99 results per search).",
     });
   };
 
@@ -409,6 +409,11 @@ const Index = () => {
     return count.toString();
   };
 
+  const openProfileAnalytics = (username: string) => {
+    const analyticsUrl = `https://app.notjustanalytics.com/analysis/${username}`;
+    window.open(analyticsUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const filteredAndSortedLeads = leads
     .filter(lead => 
       lead.brandName.toLowerCase().includes(searchFilter.toLowerCase()) ||
@@ -531,7 +536,7 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="glass border-b border-white/20 shadow-lg gothic-border">
+      <div className="glass border-b border-white/20 dark:border-white/20 border-gray-200 shadow-lg gothic-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -539,10 +544,10 @@ const Index = () => {
                 <Instagram className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent gothic-glow">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 via-purple-600 to-pink-600 dark:from-white dark:via-purple-200 dark:to-pink-200 bg-clip-text text-transparent gothic-glow">
                   Instagram Lead Finder Pro
                 </h1>
-                <p className="text-white/80 mt-1 gothic-accent">Advanced semi-automated lead generation with smart parsing</p>
+                <p className="text-gray-600 dark:text-white/80 mt-1 gothic-accent">Advanced semi-automated lead generation with smart parsing</p>
               </div>
             </div>
             <ThemeToggle />
@@ -553,27 +558,27 @@ const Index = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         <Tabs defaultValue="generator" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 glass border-white/20">
-            <TabsTrigger value="generator" className="text-white">Lead Generator</TabsTrigger>
-            <TabsTrigger value="history" className="text-white">Data History</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 glass border-white/20 dark:border-white/20 border-gray-200">
+            <TabsTrigger value="generator" className="text-gray-800 dark:text-white">Lead Generator</TabsTrigger>
+            <TabsTrigger value="history" className="text-gray-800 dark:text-white">Data History</TabsTrigger>
           </TabsList>
           
           <TabsContent value="generator" className="space-y-8">
             {/* Step 1: URL Generation */}
-            <Card className="glass border-white/20 gothic-border">
+            <Card className="glass border-white/20 dark:border-white/20 border-gray-200 gothic-border">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center space-x-2 text-white gothic-glow">
-                  <Search className="h-5 w-5 text-purple-400" />
+                <CardTitle className="flex items-center space-x-2 text-gray-800 dark:text-white gothic-glow">
+                  <Search className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                   <span>Step 1: Generate Advanced Search URL</span>
                 </CardTitle>
-                <CardDescription className="text-white/70">
-                  Generate bot-resistant Google search URLs with randomized parameters
+                <CardDescription className="text-gray-600 dark:text-white/70">
+                  Generate bot-resistant Google search URLs with randomized parameters (India-optimized)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-white/90 flex items-center space-x-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-white/90 flex items-center space-x-2">
                       <Users className="h-4 w-4" />
                       <span>Business Category</span>
                     </label>
@@ -581,11 +586,11 @@ const Index = () => {
                       placeholder="e.g., Skin Clinic, Restaurant, Gym"
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="glass border-white/30 text-white placeholder:text-white/50"
+                      className="glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/50"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-white/90 flex items-center space-x-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-white/90 flex items-center space-x-2">
                       <MapPin className="h-4 w-4" />
                       <span>City</span>
                     </label>
@@ -593,7 +598,7 @@ const Index = () => {
                       placeholder="e.g., Mumbai, Delhi, Bangalore"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      className="glass border-white/30 text-white placeholder:text-white/50"
+                      className="glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/50"
                     />
                   </div>
                   <div className="flex items-end">
@@ -609,18 +614,18 @@ const Index = () => {
 
                 {generatedUrl && (
                   <div className="mt-6 p-4 glass rounded-lg border border-purple-400/30 gothic-border">
-                    <label className="text-sm font-medium text-purple-200 mb-2 block gothic-accent">Advanced Search URL:</label>
+                    <label className="text-sm font-medium text-purple-600 dark:text-purple-200 mb-2 block gothic-accent">Advanced Search URL (India-Optimized):</label>
                     <div className="flex items-center space-x-2">
                       <Input
                         value={generatedUrl}
                         readOnly
-                        className="flex-1 glass border-purple-400/30 text-white text-sm"
+                        className="flex-1 glass border-purple-400/30 text-gray-800 dark:text-white text-sm"
                       />
                       <Button
                         onClick={copyUrl}
                         variant="outline"
                         size="sm"
-                        className="flex items-center space-x-1 glass border-white/30 text-white hover:bg-white/10"
+                        className="flex items-center space-x-1 glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
                       >
                         {urlCopied ? <CheckCircle className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
                         <span>{urlCopied ? "Copied!" : "Copy"}</span>
@@ -629,65 +634,56 @@ const Index = () => {
                         onClick={openInGoogle}
                         variant="outline"
                         size="sm"
-                        className="flex items-center space-x-1 glass border-white/30 text-white hover:bg-white/10"
+                        className="flex items-center space-x-1 glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
                       >
                         <ExternalLink className="h-4 w-4" />
                         <span>Open</span>
                       </Button>
                     </div>
-                    <p className="text-xs text-purple-200 mt-2">
-                      💡 Use in incognito mode with random delays between page loads. URL includes anti-bot parameters.
+                    <p className="text-xs text-purple-600 dark:text-purple-200 mt-2">
+                      💡 Use in incognito mode with random delays. URL targets India (89-99 results per search).
                     </p>
-                    <div className="mt-3 p-3 glass rounded border border-amber-400/20">
-                      <p className="text-xs text-amber-200 font-medium">🛡️ Anti-Detection Features:</p>
-                      <ul className="text-xs text-amber-200/80 mt-1 space-y-1">
-                        <li>• Randomized search parameters and user agents</li>
-                        <li>• Geographic location randomization</li>
-                        <li>• Timestamp-based cache busting</li>
-                        <li>• Use with VPN + incognito mode for maximum stealth</li>
-                      </ul>
-                    </div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {/* Step 2: Data Input */}
-            <Card className="glass border-white/20">
+            <Card className="glass border-white/20 dark:border-white/20 border-gray-200">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center space-x-2 text-white">
-                  <Upload className="h-5 w-5 text-green-400" />
+                <CardTitle className="flex items-center space-x-2 text-gray-800 dark:text-white">
+                  <Upload className="h-5 w-5 text-green-600 dark:text-green-400" />
                   <span>Step 2: Upload Scraped Data</span>
                 </CardTitle>
-                <CardDescription className="text-white/70">
+                <CardDescription className="text-gray-600 dark:text-white/70">
                   Paste your scraped data or upload a CSV file from your scraping extension
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-white/90">Paste Scraped Data Here:</label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-white/90">Paste Scraped Data Here:</label>
                     <Textarea
                       placeholder="Paste your scraped Instagram data here (URLs, brand names, follower counts, etc.)"
                       value={rawData}
                       onChange={(e) => setRawData(e.target.value)}
-                      className="h-32 resize-none glass border-white/30 text-white placeholder:text-white/50"
+                      className="h-32 resize-none glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/50"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-white/90">Or Upload CSV File:</label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-white/90">Or Upload CSV File:</label>
                     <div 
                       className={`border-2 border-dashed rounded-lg p-8 text-center transition-all glass ${
                         isDragOver 
                           ? 'border-blue-400 bg-blue-400/10' 
-                          : 'border-white/30 hover:border-white/50'
+                          : 'border-gray-300 dark:border-white/30 hover:border-gray-400 dark:hover:border-white/50'
                       }`}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
                     >
-                      <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragOver ? 'text-blue-400' : 'text-white/60'}`} />
-                      <p className="text-sm text-white/70 mb-2">
+                      <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragOver ? 'text-blue-400' : 'text-gray-500 dark:text-white/60'}`} />
+                      <p className="text-sm text-gray-600 dark:text-white/70 mb-2">
                         {isDragOver ? 'Drop your file here' : 'Drag & drop your CSV file here'}
                       </p>
                       <input
@@ -698,24 +694,24 @@ const Index = () => {
                         id="file-upload"
                       />
                       <label htmlFor="file-upload">
-                        <Button variant="outline" size="sm" className="cursor-pointer glass border-white/30 text-white hover:bg-white/10">
+                        <Button variant="outline" size="sm" className="cursor-pointer glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
                           Choose File
                         </Button>
                       </label>
-                      <p className="text-xs text-white/50 mt-2">CSV or TXT files only</p>
+                      <p className="text-xs text-gray-500 dark:text-white/50 mt-2">CSV or TXT files only</p>
                     </div>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-4 pt-4">
                   <div className="flex items-center space-x-2">
-                    <label className="text-sm font-medium text-white/90">Minimum Followers (optional):</label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-white/90">Minimum Followers (optional):</label>
                     <Input
                       type="number"
                       placeholder="1000"
                       value={minFollowers}
                       onChange={(e) => setMinFollowers(e.target.value)}
-                      className="w-32 glass border-white/30 text-white placeholder:text-white/50"
+                      className="w-32 glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/50"
                     />
                   </div>
                   <Button
@@ -743,34 +739,34 @@ const Index = () => {
             {(leads.length > 0 || unconfirmedLeads.length > 0) && (
               <>
                 {/* Confirmed Results */}
-                <Card className="glass border-white/20">
+                <Card className="glass border-white/20 dark:border-white/20 border-gray-200">
                   <CardHeader className="pb-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
                       <div className="flex items-center space-x-4">
-                        <CardTitle className="flex items-center space-x-2 text-white">
-                          <Instagram className="h-5 w-5 text-green-400" />
+                        <CardTitle className="flex items-center space-x-2 text-gray-800 dark:text-white">
+                          <Instagram className="h-5 w-5 text-green-600 dark:text-green-400" />
                           <span>Confirmed Results</span>
                         </CardTitle>
-                        <Badge variant="secondary" className="px-3 py-1 bg-green-500/20 text-green-300">
+                        <Badge variant="secondary" className="px-3 py-1 bg-green-500/20 text-green-700 dark:text-green-300">
                           {filteredAndSortedLeads.length} high-confidence leads
                         </Badge>
                       </div>
                       
                       <div className="flex items-center space-x-3">
                         <div className="relative">
-                          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/60" />
+                          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-white/60" />
                           <Input
                             placeholder="Filter by name or username..."
                             value={searchFilter}
                             onChange={(e) => setSearchFilter(e.target.value)}
-                            className="pl-10 w-64 glass border-white/30 text-white placeholder:text-white/50"
+                            className="pl-10 w-64 glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/50"
                           />
                         </div>
                         
                         <Button
                           variant="outline"
                           onClick={() => handleExport("csv", false)}
-                          className="flex items-center space-x-2 glass border-white/30 text-white hover:bg-white/10"
+                          className="flex items-center space-x-2 glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
                         >
                           <Download className="h-4 w-4" />
                           <span>Export CSV</span>
@@ -782,9 +778,9 @@ const Index = () => {
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
-                          <TableRow className="glass border-white/20">
+                          <TableRow className="glass border-white/20 dark:border-white/20 border-gray-200">
                             <TableHead 
-                              className="cursor-pointer hover:bg-white/10 transition-colors font-semibold text-white/90"
+                              className="cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors font-semibold text-gray-800 dark:text-white/90"
                               onClick={() => {
                                 if (sortBy === "brandName") {
                                   setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -796,10 +792,10 @@ const Index = () => {
                             >
                               Brand Name {sortBy === "brandName" && (sortOrder === "asc" ? "↑" : "↓")}
                             </TableHead>
-                            <TableHead className="text-white/90">Instagram Profile</TableHead>
-                            <TableHead className="text-white/90">Username</TableHead>
+                            <TableHead className="text-gray-800 dark:text-white/90">Instagram Profile</TableHead>
+                            <TableHead className="text-gray-800 dark:text-white/90">Username</TableHead>
                             <TableHead 
-                              className="cursor-pointer hover:bg-white/10 transition-colors font-semibold text-white/90"
+                              className="cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors font-semibold text-gray-800 dark:text-white/90"
                               onClick={() => {
                                 if (sortBy === "followers") {
                                   setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -811,28 +807,29 @@ const Index = () => {
                             >
                               Followers {sortBy === "followers" && (sortOrder === "asc" ? "↑" : "↓")}
                             </TableHead>
-                            <TableHead className="text-white/90">Confidence</TableHead>
+                            <TableHead className="text-gray-800 dark:text-white/90">Confidence</TableHead>
+                            <TableHead className="text-gray-800 dark:text-white/90">Analytics</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {filteredAndSortedLeads.map((lead) => (
-                            <TableRow key={lead.id} className="hover:bg-white/5 transition-colors border-white/10">
-                              <TableCell className="font-medium text-white">{lead.brandName}</TableCell>
+                            <TableRow key={lead.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-gray-200 dark:border-white/10">
+                              <TableCell className="font-medium text-gray-800 dark:text-white">{lead.brandName}</TableCell>
                               <TableCell>
                                 <a 
                                   href={lead.url} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  className="text-blue-400 hover:text-blue-300 hover:underline flex items-center space-x-2"
+                                  className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 hover:underline flex items-center space-x-2"
                                 >
                                   <Instagram className="h-4 w-4" />
                                   <span>View Profile</span>
                                 </a>
                               </TableCell>
-                              <TableCell className="font-mono text-sm text-white/80">@{lead.userId}</TableCell>
+                              <TableCell className="font-mono text-sm text-gray-600 dark:text-white/80">@{lead.userId}</TableCell>
                               <TableCell>
                                 <div className="flex items-center space-x-2">
-                                  <span className="font-semibold text-white">{formatFollowers(lead.followers)}</span>
+                                  <span className="font-semibold text-gray-800 dark:text-white">{formatFollowers(lead.followers)}</span>
                                   {lead.followers > 0 && (
                                     <Badge 
                                       variant={lead.followers > 20000 ? "default" : lead.followers > 10000 ? "secondary" : "outline"}
@@ -846,10 +843,21 @@ const Index = () => {
                               <TableCell>
                                 <Badge 
                                   variant={lead.confidence === 'high' ? 'default' : 'secondary'}
-                                  className={lead.confidence === 'high' ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}
+                                  className={lead.confidence === 'high' ? 'bg-green-500/20 text-green-700 dark:text-green-300' : 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300'}
                                 >
                                   {lead.confidence}
                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openProfileAnalytics(lead.userId)}
+                                  className="flex items-center space-x-1 glass border-purple-400/30 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-400/10"
+                                >
+                                  <BarChart3 className="h-3 w-3" />
+                                  <span>Profile Analytics</span>
+                                </Button>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -865,11 +873,11 @@ const Index = () => {
                     <CardHeader className="pb-4">
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
                         <div className="flex items-center space-x-4">
-                          <CardTitle className="flex items-center space-x-2 text-white">
-                            <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                          <CardTitle className="flex items-center space-x-2 text-gray-800 dark:text-white">
+                            <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
                             <span>Unconfirmed Results</span>
                           </CardTitle>
-                          <Badge variant="secondary" className="px-3 py-1 bg-yellow-500/20 text-yellow-300">
+                          <Badge variant="secondary" className="px-3 py-1 bg-yellow-500/20 text-yellow-700 dark:text-yellow-300">
                             {filteredAndSortedUnconfirmed.length} low-confidence leads
                           </Badge>
                         </div>
@@ -877,7 +885,7 @@ const Index = () => {
                         <Button
                           variant="outline"
                           onClick={() => handleExport("csv", true)}
-                          className="flex items-center space-x-2 glass border-yellow-400/30 text-yellow-300 hover:bg-yellow-400/10"
+                          className="flex items-center space-x-2 glass border-yellow-400/30 text-yellow-600 dark:text-yellow-300 hover:bg-yellow-50 dark:hover:bg-yellow-400/10"
                         >
                           <Download className="h-4 w-4" />
                           <span>Export All</span>
@@ -889,36 +897,48 @@ const Index = () => {
                         <Table>
                           <TableHeader>
                             <TableRow className="glass border-yellow-400/20">
-                              <TableHead className="text-white/90">Brand Name</TableHead>
-                              <TableHead className="text-white/90">Instagram Profile</TableHead>
-                              <TableHead className="text-white/90">Username</TableHead>
-                              <TableHead className="text-white/90">Followers</TableHead>
-                              <TableHead className="text-white/90">Confidence</TableHead>
+                              <TableHead className="text-gray-800 dark:text-white/90">Brand Name</TableHead>
+                              <TableHead className="text-gray-800 dark:text-white/90">Instagram Profile</TableHead>
+                              <TableHead className="text-gray-800 dark:text-white/90">Username</TableHead>
+                              <TableHead className="text-gray-800 dark:text-white/90">Followers</TableHead>
+                              <TableHead className="text-gray-800 dark:text-white/90">Confidence</TableHead>
+                              <TableHead className="text-gray-800 dark:text-white/90">Analytics</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {filteredAndSortedUnconfirmed.map((lead) => (
-                              <TableRow key={lead.id} className="hover:bg-yellow-400/5 transition-colors border-yellow-400/10">
-                                <TableCell className="font-medium text-white">{lead.brandName}</TableCell>
+                              <TableRow key={lead.id} className="hover:bg-yellow-50 dark:hover:bg-yellow-400/5 transition-colors border-yellow-400/10">
+                                <TableCell className="font-medium text-gray-800 dark:text-white">{lead.brandName}</TableCell>
                                 <TableCell>
                                   <a 
                                     href={lead.url} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="text-yellow-400 hover:text-yellow-300 hover:underline flex items-center space-x-2"
+                                    className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-500 dark:hover:text-yellow-300 hover:underline flex items-center space-x-2"
                                   >
                                     <Instagram className="h-4 w-4" />
                                     <span>View Profile</span>
                                   </a>
                                 </TableCell>
-                                <TableCell className="font-mono text-sm text-white/80">@{lead.userId}</TableCell>
+                                <TableCell className="font-mono text-sm text-gray-600 dark:text-white/80">@{lead.userId}</TableCell>
                                 <TableCell>
-                                  <span className="font-semibold text-white">{formatFollowers(lead.followers)}</span>
+                                  <span className="font-semibold text-gray-800 dark:text-white">{formatFollowers(lead.followers)}</span>
                                 </TableCell>
                                 <TableCell>
-                                  <Badge variant="outline" className="bg-yellow-500/20 text-yellow-300 border-yellow-400/30">
+                                  <Badge variant="outline" className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-400/30">
                                     {lead.confidence}
                                   </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openProfileAnalytics(lead.userId)}
+                                    className="flex items-center space-x-1 glass border-purple-400/30 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-400/10"
+                                  >
+                                    <BarChart3 className="h-3 w-3" />
+                                    <span>Profile Analytics</span>
+                                  </Button>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -933,24 +953,24 @@ const Index = () => {
 
             {/* Empty State */}
             {leads.length === 0 && unconfirmedLeads.length === 0 && !isProcessing && (
-              <Card className="text-center py-12 glass border-white/20 border-dashed border-2">
+              <Card className="text-center py-12 glass border-white/20 dark:border-white/20 border-gray-200 border-dashed border-2">
                 <CardContent>
-                  <Instagram className="h-16 w-16 text-white/60 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-white mb-2">Ready to Find Instagram Leads</h3>
-                  <p className="text-white/70 mb-6">
+                  <Instagram className="h-16 w-16 text-gray-400 dark:text-white/60 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">Ready to Find Instagram Leads</h3>
+                  <p className="text-gray-600 dark:text-white/70 mb-6">
                     Follow the 3-step process: Generate URL → Scrape Data → Clean & Export
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto text-sm text-white/70">
-                    <div className="glass p-4 rounded-lg border border-white/20">
-                      <div className="font-medium text-blue-300 mb-1">🔗 Step 1: Generate URL</div>
-                      <div>Create bot-resistant Google search URLs</div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto text-sm text-gray-600 dark:text-white/70">
+                    <div className="glass p-4 rounded-lg border border-gray-200 dark:border-white/20">
+                      <div className="font-medium text-blue-600 dark:text-blue-300 mb-1">🔗 Step 1: Generate URL</div>
+                      <div>Create bot-resistant Google search URLs (India-optimized)</div>
                     </div>
-                    <div className="glass p-4 rounded-lg border border-white/20">
-                      <div className="font-medium text-green-300 mb-1">📊 Step 2: Scrape Data</div>
+                    <div className="glass p-4 rounded-lg border border-gray-200 dark:border-white/20">
+                      <div className="font-medium text-green-600 dark:text-green-300 mb-1">📊 Step 2: Scrape Data</div>
                       <div>Use browser extensions to collect data safely</div>
                     </div>
-                    <div className="glass p-4 rounded-lg border border-white/20">
-                      <div className="font-medium text-purple-300 mb-1">🧹 Step 3: Clean & Export</div>
+                    <div className="glass p-4 rounded-lg border border-gray-200 dark:border-white/20">
+                      <div className="font-medium text-purple-600 dark:text-purple-300 mb-1">🧹 Step 3: Clean & Export</div>
                       <div>Process and export clean lead lists with confidence scoring</div>
                     </div>
                   </div>
