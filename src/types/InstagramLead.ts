@@ -1,11 +1,11 @@
 
 export interface InstagramLead {
   id: string;
-  url: string;
-  brandName: string;
-  userId: string;
-  followers: number;
+  username: string;
+  profileUrl: string;
+  followers: string; // Changed from number to string since we store "Unknown" or formatted strings
+  bio: string;
   category: string;
   city: string;
-  confidence: 'high' | 'medium' | 'low';
+  isConfirmed: boolean;
 }

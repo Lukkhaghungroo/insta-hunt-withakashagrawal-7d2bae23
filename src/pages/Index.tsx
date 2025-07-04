@@ -42,7 +42,7 @@ const Index = () => {
       return;
     }
 
-    const searchQuery = `${category} ${city} instagram site:instagram.com`;
+    const searchQuery = `site:instagram.com "${category}" "${city}"`;
     const ecosiaUrl = `https://www.ecosia.org/search?q=${encodeURIComponent(searchQuery)}`;
     window.open(ecosiaUrl, '_blank');
     
