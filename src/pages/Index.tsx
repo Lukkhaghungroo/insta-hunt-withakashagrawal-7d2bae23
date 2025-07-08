@@ -117,7 +117,20 @@ const Index = () => {
     }
   };
 
-  const parseInstagramData = (data: string): { confirmed: InstagramLead[], unconfirmed: InstagramLead[] } => {
+  // Function to extract followers using CSS selectors
+  const extractFollowersFromCSS = async (url: string): Promise<number> => {
+    try {
+      // This would typically be done in a browser extension or automation tool
+      // For demo purposes, we'll return 0 and rely on scraped data
+      console.log('CSS extraction not available in browser environment for:', url);
+      return 0;
+    } catch (error) {
+      console.error('CSS extraction failed:', error);
+      return 0;
+    }
+  };
+
+  const parseInstagramData = async (data: string): Promise<{ confirmed: InstagramLead[], unconfirmed: InstagramLead[] }> => {
     const lines = data.split('\n').filter(line => line.trim());
     const confirmedLeads: InstagramLead[] = [];
     const unconfirmedLeads: InstagramLead[] = [];
@@ -142,8 +155,9 @@ const Index = () => {
       console.log('URL column index:', urlIndex);
       console.log('Follower column index:', followerIndex);
 
-      dataLines.forEach((line, index) => {
-        if (!line.trim()) return;
+      for (let index = 0; index < dataLines.length; index++) {
+        const line = dataLines[index];
+        if (!line.trim()) continue;
         
         // Split CSV line while handling quoted values
         const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
@@ -191,9 +205,19 @@ const Index = () => {
             brandName = userId.replace(/_/g, ' ').replace(/\./g, ' ');
             brandName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
 
-            // Parse follower count from CSV column
+            // First try CSS selector extraction, then fallback to scraped data
             let followers = 0;
-            if (followerText) {
+            
+            // Try CSS selector extraction first
+            try {
+              followers = await extractFollowersFromCSS(cleanUrl);
+              console.log('CSS extraction result for', cleanUrl, ':', followers);
+            } catch (error) {
+              console.log('CSS extraction failed, falling back to scraped data');
+            }
+            
+            // If CSS extraction didn't work, parse from scraped data
+            if (followers === 0 && followerText) {
               console.log('Parsing follower text from CSV:', followerText);
               
               const followerPatterns = [
@@ -243,14 +267,15 @@ const Index = () => {
             }
           }
         }
-      });
+      }
     } else {
       // Handle raw text format (existing logic)
-      lines.forEach((line, index) => {
+      for (let index = 0; index < lines.length; index++) {
+        const line = lines[index];
         const instagramUrlMatches = line.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:p\/[^\/\s,"]+|reel\/[^\/\s,"]+|[^\/\s,"]+)/g);
         
         if (instagramUrlMatches) {
-          instagramUrlMatches.forEach(fullUrl => {
+          for (const fullUrl of instagramUrlMatches) {
             const cleanUrl = fullUrl.split('?')[0].replace(/\/$/, '');
             
             if (seenUrls.has(cleanUrl)) return;
@@ -284,36 +309,49 @@ const Index = () => {
             brandName = userId.replace(/_/g, ' ').replace(/\./g, ' ');
             brandName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
 
+            // First try CSS selector extraction, then fallback to scraped data
             let followers = 0;
-            console.log('Processing text line:', line);
             
-            const followerPatterns = [
-              /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*followers?/i,
-              /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*follower/i,
-              /(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?\s*followers?/i,
-              /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?/i,
-              /([\d,]+\.?\d*)\s*followers?/i,
-              /(\d+(?:,\d{3})*(?:\.\d+)?)\s*followers?/i
-            ];
+            // Try CSS selector extraction first
+            try {
+              followers = await extractFollowersFromCSS(cleanUrl);
+              console.log('CSS extraction result for', cleanUrl, ':', followers);
+            } catch (error) {
+              console.log('CSS extraction failed, falling back to scraped data');
+            }
             
-            for (const pattern of followerPatterns) {
-              const followerMatch = line.match(pattern);
-              if (followerMatch) {
-                console.log('Found text follower match:', followerMatch);
-                let number = parseFloat(followerMatch[1].replace(/,/g, ''));
-                const unit = followerMatch[2]?.toLowerCase();
+            // If CSS extraction didn't work, parse from scraped data
+            if (followers === 0) {
+              console.log('Processing text line:', line);
+              
+              const followerPatterns = [
+                /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*followers?/i,
+                /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*follower/i,
+                /(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?\s*followers?/i,
+                /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?/i,
+                /([\d,]+\.?\d*)\s*followers?/i,
+                /(\d+(?:,\d{3})*(?:\.\d+)?)\s*followers?/i
+              ];
+              
+              for (const pattern of followerPatterns) {
+                const followerMatch = line.match(pattern);
+                if (followerMatch) {
+                  console.log('Found text follower match:', followerMatch);
+                  let number = parseFloat(followerMatch[1].replace(/,/g, ''));
+                  const unit = followerMatch[2]?.toLowerCase();
 
-                if (unit === 'k') {
-                  number *= 1000;
-                } else if (unit === 'm') {
-                  number *= 1000000;
-                } else if (unit === 'l') {
-                  number *= 100000;
+                  if (unit === 'k') {
+                    number *= 1000;
+                  } else if (unit === 'm') {
+                    number *= 1000000;
+                  } else if (unit === 'l') {
+                    number *= 100000;
+                  }
+                  
+                  followers = Math.round(number);
+                  console.log('Parsed text followers:', followers);
+                  break;
                 }
-                
-                followers = Math.round(number);
-                console.log('Parsed text followers:', followers);
-                break;
               }
             }
 
@@ -333,9 +371,9 @@ const Index = () => {
             } else {
               unconfirmedLeads.push(lead);
             }
-          });
+          }
         }
-      });
+      }
     }
 
     return { confirmed: confirmedLeads, unconfirmed: unconfirmedLeads };
@@ -437,7 +475,7 @@ const Index = () => {
     setDataHistory(prev => [historyItem, ...prev.slice(0, 9)]); // Keep only last 10 items
   };
 
-  const cleanAndFilterData = () => {
+  const cleanAndFilterData = async () => {
     if (!rawData.trim()) {
       toast({
         title: "No Data Found",
@@ -449,8 +487,8 @@ const Index = () => {
 
     setIsProcessing(true);
 
-    setTimeout(() => {
-      const { confirmed, unconfirmed } = parseInstagramData(rawData);
+    setTimeout(async () => {
+      const { confirmed, unconfirmed } = await parseInstagramData(rawData);
       
       // Apply follower filter if specified
       let filteredConfirmed = confirmed;
