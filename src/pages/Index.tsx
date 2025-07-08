@@ -132,7 +132,6 @@ const Index = () => {
         instagramUrlMatches.forEach(fullUrl => {
           const cleanUrl = fullUrl.split('?')[0].replace(/\/$/, '');
           
-          // Skip if we've already seen this URL
           if (seenUrls.has(cleanUrl)) return;
           seenUrls.add(cleanUrl);
 
@@ -140,15 +139,12 @@ const Index = () => {
           let brandName = '';
           let confidence: 'high' | 'medium' | 'low' = 'medium';
 
-          // Extract user ID and determine confidence
           if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
-            // For posts/reels, try to extract username from context
             const usernameMatch = line.match(/@([a-zA-Z0-9._]+)/);
             if (usernameMatch) {
               userId = usernameMatch[1];
               confidence = 'low';
             } else {
-              // Try to extract from surrounding text
               const contextMatch = line.match(/instagram\.com\/([^\/\s,"]+)/);
               if (contextMatch) {
                 userId = contextMatch[1];
@@ -156,46 +152,52 @@ const Index = () => {
               }
             }
           } else {
-            // Direct profile URL
             const urlParts = cleanUrl.split('/');
             userId = urlParts[3] || '';
             confidence = 'high';
           }
 
-          // Skip if we've already processed this profile
-          if (seenProfiles.has(userId)) return;
+          if (!userId || seenProfiles.has(userId)) return;
           seenProfiles.add(userId);
 
-          // Extract brand name
           brandName = userId.replace(/_/g, ' ').replace(/\./g, ' ');
           brandName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
 
-          // Try to extract follower count with better regex
+          // ===================================================================
+          // NEW & IMPROVED FOLLOWER PARSING LOGIC
+          // This is the key change. It uses regular expressions to find
+          // follower counts in the text you paste.
+          // ===================================================================
           let followers = 0;
-          const followerPatterns = [
-            /([\d,]+\.?\d*)\s*(K|M|k|m)?\s*followers?/i,
-            /([\d,]+\.?\d*)\s*(K|M|k|m)?\s*subscriber/i,
-            /(\d{1,3}(?:,\d{3})*)\s*followers?/i
-          ];
+          // This regex looks for patterns like:
+          // "1,234 followers", "1.2k followers", "3M followers"
+          const followerPattern = /([\d,]+\.?\d*)\s*(k|m)?\s*followers?/i;
+          const followerMatch = line.match(followerPattern);
 
-          for (const pattern of followerPatterns) {
-            const followerMatch = line.match(pattern);
-            if (followerMatch) {
-              let number = parseFloat(followerMatch[1].replace(/,/g, ''));
-              const unit = followerMatch[2]?.toUpperCase();
-              if (unit === 'K') number *= 1000;
-              if (unit === 'M') number *= 1000000;
-              followers = Math.round(number);
-              break;
+          if (followerMatch) {
+            // followerMatch[1] is the number part (e.g., "1,234" or "1.2")
+            let number = parseFloat(followerMatch[1].replace(/,/g, ''));
+            // followerMatch[2] is the unit (e.g., "k" or "m" or undefined)
+            const unit = followerMatch[2]?.toLowerCase();
+
+            if (unit === 'k') {
+              number *= 1000;
+            } else if (unit === 'm') {
+              number *= 1000000;
             }
+            
+            followers = Math.round(number);
           }
+          // ===================================================================
+          // END OF NEW LOGIC
+          // ===================================================================
 
           const lead: InstagramLead = {
             id: `${index}-${userId}-${Date.now()}`,
             url: cleanUrl,
             brandName,
             userId,
-            followers,
+            followers, // The extracted follower count is now assigned here!
             category,
             city,
             confidence
