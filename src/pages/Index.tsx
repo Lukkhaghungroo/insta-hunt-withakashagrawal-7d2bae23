@@ -173,13 +173,14 @@ const Index = () => {
           // Debug: Log the line being processed
           console.log('Processing line:', line);
           
-          // Enhanced regex patterns for different follower formats
+          // Enhanced regex patterns for different follower formats including Indian numbering (L for Lakh)
           const followerPatterns = [
-            /([\d,]+\.?\d*)\s*(k|m|K|M)?\s*followers?/i,
-            /([\d,]+\.?\d*)\s*(k|m|K|M)\s*followers?/i,
-            /(\d+(?:,\d{3})*(?:\.\d+)?)\s*(k|m|K|M)?\s*followers?/i,
-            /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*(k|m|K|M)?/i,
-            /(\d+(?:,\d{3})*(?:\.\d+)?)\s*(k|m|K|M)?\s*follower/i
+            /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*followers?/i,
+            /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*follower/i,
+            /(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?\s*followers?/i,
+            /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?/i,
+            /([\d,]+\.?\d*)\s*followers?/i,
+            /(\d+(?:,\d{3})*(?:\.\d+)?)\s*followers?/i
           ];
           
           for (const pattern of followerPatterns) {
@@ -195,6 +196,8 @@ const Index = () => {
                 number *= 1000;
               } else if (unit === 'm') {
                 number *= 1000000;
+              } else if (unit === 'l') {
+                number *= 100000; // L = Lakh = 100,000 in Indian numbering
               }
               
               followers = Math.round(number);
