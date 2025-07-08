@@ -124,114 +124,219 @@ const Index = () => {
     const seenUrls = new Set<string>();
     const seenProfiles = new Set<string>();
 
-    lines.forEach((line, index) => {
-      // Enhanced regex for better Instagram URL detection
-      const instagramUrlMatches = line.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:p\/[^\/\s,"]+|reel\/[^\/\s,"]+|[^\/\s,"]+)/g);
+    // Check if data appears to be CSV format (has commas and likely headers)
+    const isCSV = lines.length > 0 && lines[0].includes(',') && lines[0].toLowerCase().includes('url');
+    
+    console.log('Data format detected:', isCSV ? 'CSV' : 'Raw text');
+
+    if (isCSV) {
+      // Handle CSV format
+      const [headerLine, ...dataLines] = lines;
+      const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
       
-      if (instagramUrlMatches) {
-        instagramUrlMatches.forEach(fullUrl => {
-          const cleanUrl = fullUrl.split('?')[0].replace(/\/$/, '');
+      // Find column indexes
+      const urlIndex = headers.findIndex(h => h.includes('url') || h.includes('instagram'));
+      const followerIndex = headers.findIndex(h => h.includes('follower') || h.includes('likes'));
+      
+      console.log('CSV Headers:', headers);
+      console.log('URL column index:', urlIndex);
+      console.log('Follower column index:', followerIndex);
+
+      dataLines.forEach((line, index) => {
+        if (!line.trim()) return;
+        
+        // Split CSV line while handling quoted values
+        const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+        
+        if (urlIndex >= 0 && urlIndex < columns.length) {
+          const url = columns[urlIndex];
+          const followerText = followerIndex >= 0 && followerIndex < columns.length ? columns[followerIndex] : '';
           
-          if (seenUrls.has(cleanUrl)) return;
-          seenUrls.add(cleanUrl);
+          console.log('Processing CSV row:', { url, followerText });
+          
+          // Check if URL is an Instagram URL
+          const instagramUrlMatch = url.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:p\/[^\/\s,"]+|reel\/[^\/\s,"]+|([^\/\s,"]+))/);
+          
+          if (instagramUrlMatch) {
+            const cleanUrl = url.split('?')[0].replace(/\/$/, '');
+            
+            if (seenUrls.has(cleanUrl)) return;
+            seenUrls.add(cleanUrl);
 
-          let userId = '';
-          let brandName = '';
-          let confidence: 'high' | 'medium' | 'low' = 'medium';
+            let userId = '';
+            let brandName = '';
+            let confidence: 'high' | 'medium' | 'low' = 'medium';
 
-          if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
-            const usernameMatch = line.match(/@([a-zA-Z0-9._]+)/);
-            if (usernameMatch) {
-              userId = usernameMatch[1];
-              confidence = 'low';
-            } else {
-              const contextMatch = line.match(/instagram\.com\/([^\/\s,"]+)/);
-              if (contextMatch) {
-                userId = contextMatch[1];
+            if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
+              const usernameMatch = line.match(/@([a-zA-Z0-9._]+)/);
+              if (usernameMatch) {
+                userId = usernameMatch[1];
                 confidence = 'low';
+              } else {
+                const contextMatch = cleanUrl.match(/instagram\.com\/([^\/\s,"]+)/);
+                if (contextMatch) {
+                  userId = contextMatch[1];
+                  confidence = 'low';
+                }
               }
+            } else {
+              const urlParts = cleanUrl.split('/');
+              userId = urlParts[3] || '';
+              confidence = 'high';
             }
-          } else {
-            const urlParts = cleanUrl.split('/');
-            userId = urlParts[3] || '';
-            confidence = 'high';
-          }
 
-          if (!userId || seenProfiles.has(userId)) return;
-          seenProfiles.add(userId);
+            if (!userId || seenProfiles.has(userId)) return;
+            seenProfiles.add(userId);
 
-          brandName = userId.replace(/_/g, ' ').replace(/\./g, ' ');
-          brandName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
+            brandName = userId.replace(/_/g, ' ').replace(/\./g, ' ');
+            brandName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
 
-          // ===================================================================
-          // NEW & IMPROVED FOLLOWER PARSING LOGIC
-          // This is the key change. It uses regular expressions to find
-          // follower counts in the text you paste.
-          // ===================================================================
-          let followers = 0;
-          
-          // Debug: Log the line being processed
-          console.log('Processing line:', line);
-          
-          // Enhanced regex patterns for different follower formats including Indian numbering (L for Lakh)
-          const followerPatterns = [
-            /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*followers?/i,
-            /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*follower/i,
-            /(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?\s*followers?/i,
-            /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?/i,
-            /([\d,]+\.?\d*)\s*followers?/i,
-            /(\d+(?:,\d{3})*(?:\.\d+)?)\s*followers?/i
-          ];
-          
-          for (const pattern of followerPatterns) {
-            const followerMatch = line.match(pattern);
-            if (followerMatch) {
-              console.log('Found follower match:', followerMatch);
-              // followerMatch[1] is the number part (e.g., "1,234" or "1.2")
-              let number = parseFloat(followerMatch[1].replace(/,/g, ''));
-              // followerMatch[2] is the unit (e.g., "k" or "m" or undefined)
-              const unit = followerMatch[2]?.toLowerCase();
-
-              if (unit === 'k') {
-                number *= 1000;
-              } else if (unit === 'm') {
-                number *= 1000000;
-              } else if (unit === 'l') {
-                number *= 100000; // L = Lakh = 100,000 in Indian numbering
-              }
+            // Parse follower count from CSV column
+            let followers = 0;
+            if (followerText) {
+              console.log('Parsing follower text from CSV:', followerText);
               
-              followers = Math.round(number);
-              console.log('Parsed followers:', followers);
-              break; // Exit loop once we find a match
+              const followerPatterns = [
+                /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*followers?/i,
+                /([\d,]+\.?\d*)\s*([kKmMlL])\+?/i,
+                /(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?/i,
+                /([\d,]+\.?\d*)/
+              ];
+              
+              for (const pattern of followerPatterns) {
+                const followerMatch = followerText.match(pattern);
+                if (followerMatch) {
+                  console.log('Found CSV follower match:', followerMatch);
+                  let number = parseFloat(followerMatch[1].replace(/,/g, ''));
+                  const unit = followerMatch[2]?.toLowerCase();
+
+                  if (unit === 'k') {
+                    number *= 1000;
+                  } else if (unit === 'm') {
+                    number *= 1000000;
+                  } else if (unit === 'l') {
+                    number *= 100000; // L = Lakh = 100,000 in Indian numbering
+                  }
+                  
+                  followers = Math.round(number);
+                  console.log('Parsed CSV followers:', followers);
+                  break;
+                }
+              }
+            }
+
+            const lead: InstagramLead = {
+              id: `${index}-${userId}-${Date.now()}`,
+              url: cleanUrl,
+              brandName,
+              userId,
+              followers,
+              category,
+              city,
+              confidence
+            };
+
+            if (confidence === 'high' || confidence === 'medium') {
+              confirmedLeads.push(lead);
+            } else {
+              unconfirmedLeads.push(lead);
             }
           }
-          
-          if (followers === 0) {
-            console.log('No follower count found in line:', line);
-          }
-          // ===================================================================
-          // END OF NEW LOGIC
-          // ===================================================================
+        }
+      });
+    } else {
+      // Handle raw text format (existing logic)
+      lines.forEach((line, index) => {
+        const instagramUrlMatches = line.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:p\/[^\/\s,"]+|reel\/[^\/\s,"]+|[^\/\s,"]+)/g);
+        
+        if (instagramUrlMatches) {
+          instagramUrlMatches.forEach(fullUrl => {
+            const cleanUrl = fullUrl.split('?')[0].replace(/\/$/, '');
+            
+            if (seenUrls.has(cleanUrl)) return;
+            seenUrls.add(cleanUrl);
 
-          const lead: InstagramLead = {
-            id: `${index}-${userId}-${Date.now()}`,
-            url: cleanUrl,
-            brandName,
-            userId,
-            followers, // The extracted follower count is now assigned here!
-            category,
-            city,
-            confidence
-          };
+            let userId = '';
+            let brandName = '';
+            let confidence: 'high' | 'medium' | 'low' = 'medium';
 
-          if (confidence === 'high' || confidence === 'medium') {
-            confirmedLeads.push(lead);
-          } else {
-            unconfirmedLeads.push(lead);
-          }
-        });
-      }
-    });
+            if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
+              const usernameMatch = line.match(/@([a-zA-Z0-9._]+)/);
+              if (usernameMatch) {
+                userId = usernameMatch[1];
+                confidence = 'low';
+              } else {
+                const contextMatch = line.match(/instagram\.com\/([^\/\s,"]+)/);
+                if (contextMatch) {
+                  userId = contextMatch[1];
+                  confidence = 'low';
+                }
+              }
+            } else {
+              const urlParts = cleanUrl.split('/');
+              userId = urlParts[3] || '';
+              confidence = 'high';
+            }
+
+            if (!userId || seenProfiles.has(userId)) return;
+            seenProfiles.add(userId);
+
+            brandName = userId.replace(/_/g, ' ').replace(/\./g, ' ');
+            brandName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
+
+            let followers = 0;
+            console.log('Processing text line:', line);
+            
+            const followerPatterns = [
+              /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*followers?/i,
+              /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*follower/i,
+              /(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?\s*followers?/i,
+              /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?/i,
+              /([\d,]+\.?\d*)\s*followers?/i,
+              /(\d+(?:,\d{3})*(?:\.\d+)?)\s*followers?/i
+            ];
+            
+            for (const pattern of followerPatterns) {
+              const followerMatch = line.match(pattern);
+              if (followerMatch) {
+                console.log('Found text follower match:', followerMatch);
+                let number = parseFloat(followerMatch[1].replace(/,/g, ''));
+                const unit = followerMatch[2]?.toLowerCase();
+
+                if (unit === 'k') {
+                  number *= 1000;
+                } else if (unit === 'm') {
+                  number *= 1000000;
+                } else if (unit === 'l') {
+                  number *= 100000;
+                }
+                
+                followers = Math.round(number);
+                console.log('Parsed text followers:', followers);
+                break;
+              }
+            }
+
+            const lead: InstagramLead = {
+              id: `${index}-${userId}-${Date.now()}`,
+              url: cleanUrl,
+              brandName,
+              userId,
+              followers,
+              category,
+              city,
+              confidence
+            };
+
+            if (confidence === 'high' || confidence === 'medium') {
+              confirmedLeads.push(lead);
+            } else {
+              unconfirmedLeads.push(lead);
+            }
+          });
+        }
+      });
+    }
 
     return { confirmed: confirmedLeads, unconfirmed: unconfirmedLeads };
   };
