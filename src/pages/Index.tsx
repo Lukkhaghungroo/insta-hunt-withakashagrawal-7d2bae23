@@ -169,24 +169,42 @@ const Index = () => {
           // follower counts in the text you paste.
           // ===================================================================
           let followers = 0;
-          // This regex looks for patterns like:
-          // "1,234 followers", "1.2k followers", "3M followers"
-          const followerPattern = /([\d,]+\.?\d*)\s*(k|m)?\s*followers?/i;
-          const followerMatch = line.match(followerPattern);
+          
+          // Debug: Log the line being processed
+          console.log('Processing line:', line);
+          
+          // Enhanced regex patterns for different follower formats
+          const followerPatterns = [
+            /([\d,]+\.?\d*)\s*(k|m|K|M)?\s*followers?/i,
+            /([\d,]+\.?\d*)\s*(k|m|K|M)\s*followers?/i,
+            /(\d+(?:,\d{3})*(?:\.\d+)?)\s*(k|m|K|M)?\s*followers?/i,
+            /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*(k|m|K|M)?/i,
+            /(\d+(?:,\d{3})*(?:\.\d+)?)\s*(k|m|K|M)?\s*follower/i
+          ];
+          
+          for (const pattern of followerPatterns) {
+            const followerMatch = line.match(pattern);
+            if (followerMatch) {
+              console.log('Found follower match:', followerMatch);
+              // followerMatch[1] is the number part (e.g., "1,234" or "1.2")
+              let number = parseFloat(followerMatch[1].replace(/,/g, ''));
+              // followerMatch[2] is the unit (e.g., "k" or "m" or undefined)
+              const unit = followerMatch[2]?.toLowerCase();
 
-          if (followerMatch) {
-            // followerMatch[1] is the number part (e.g., "1,234" or "1.2")
-            let number = parseFloat(followerMatch[1].replace(/,/g, ''));
-            // followerMatch[2] is the unit (e.g., "k" or "m" or undefined)
-            const unit = followerMatch[2]?.toLowerCase();
-
-            if (unit === 'k') {
-              number *= 1000;
-            } else if (unit === 'm') {
-              number *= 1000000;
+              if (unit === 'k') {
+                number *= 1000;
+              } else if (unit === 'm') {
+                number *= 1000000;
+              }
+              
+              followers = Math.round(number);
+              console.log('Parsed followers:', followers);
+              break; // Exit loop once we find a match
             }
-            
-            followers = Math.round(number);
+          }
+          
+          if (followers === 0) {
+            console.log('No follower count found in line:', line);
           }
           // ===================================================================
           // END OF NEW LOGIC
