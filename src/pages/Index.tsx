@@ -11,8 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import ThemeToggle from "@/components/ThemeToggle";
 import DataHistory from "@/components/DataHistory";
 import { InstagramLead } from "@/types/InstagramLead";
-import Papa from 'papaparse';
-import { getInstagramFollowers, parseFollowerText } from "@/utils/followerExtractor";
 
 interface DataHistoryItem {
   id: string;
@@ -119,138 +117,225 @@ const Index = () => {
     }
   };
 
-  // Enhanced function to extract followers using CSS selectors
-  const extractFollowersFromCSS = async (url: string): Promise<number> => {
-    try {
-      // Use the improved follower extraction utility
-      const result = await getInstagramFollowers(url);
-      console.log('CSS extraction result for', url, ':', result);
-      return result.followers;
-    } catch (error) {
-      console.error('CSS extraction failed for:', url, error);
-      return 0;
-    }
-  };
-
-  const parseInstagramData = async (data: string): Promise<{ confirmed: InstagramLead[], unconfirmed: InstagramLead[] }> => {
+  const parseInstagramData = (data: string): { confirmed: InstagramLead[], unconfirmed: InstagramLead[] } => {
     const lines = data.split('\n').filter(line => line.trim());
-    const preliminaryLeads: InstagramLead[] = [];
+    const confirmedLeads: InstagramLead[] = [];
+    const unconfirmedLeads: InstagramLead[] = [];
     const seenUrls = new Set<string>();
     const seenProfiles = new Set<string>();
 
+    // Check if data appears to be CSV format (has commas and likely headers)
     const isCSV = lines.length > 0 && lines[0].includes(',') && lines[0].toLowerCase().includes('url');
+    
+    console.log('Data format detected:', isCSV ? 'CSV' : 'Raw text');
 
-    // --- STAGE 1: Primary Parsing from Scraped Data ---
-    // First, we do a single pass to get all possible data from the text itself.
+    if (isCSV) {
+      // Handle CSV format
+      const [headerLine, ...dataLines] = lines;
+      const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
+      
+      // Find column indexes
+      const urlIndex = headers.findIndex(h => h.includes('url') || h.includes('instagram'));
+      const followerIndex = headers.findIndex(h => h.includes('follower') || h.includes('likes'));
+      
+      console.log('CSV Headers:', headers);
+      console.log('URL column index:', urlIndex);
+      console.log('Follower column index:', followerIndex);
 
-    for (let index = 0; index < lines.length; index++) {
-      const line = lines[index];
-      // Regex to find all Instagram URLs in a line
-      const instagramUrlMatches = line.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:p\/[^\/\s,"]+|reel\/[^\/\s,"]+|[^\/\s,"]+)/g);
-      if (!instagramUrlMatches) continue;
-
-      for (const fullUrl of instagramUrlMatches) {
-        const cleanUrl = fullUrl.split('?')[0].replace(/\/$/, '');
-
-        // BUG FIX: Use 'continue' to skip duplicates, not 'return' to exit the whole function.
-        if (seenUrls.has(cleanUrl)) continue;
-        seenUrls.add(cleanUrl);
-
-        let userId = '';
-        let brandName = '';
-        let confidence: 'high' | 'medium' | 'low' = 'medium';
-
-        // Determine user ID and confidence from URL structure
-        if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
-          const usernameMatch = line.match(/@([a-zA-Z0-9._]+)/);
-          userId = usernameMatch ? usernameMatch[1] : (line.match(/instagram\.com\/([^\/\s,"]+)/)?.[1] || '');
-          confidence = 'low';
-        } else {
-          userId = cleanUrl.split('/')[3] || '';
-          confidence = 'high';
-        }
-
-        if (!userId || seenProfiles.has(userId)) continue;
-        seenProfiles.add(userId);
-
-        brandName = userId.replace(/[._]/g, ' ').replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
-
-        // PRIORITY #1: Get followers from scraped text first
-        let followers = 0;
+      dataLines.forEach((line, index) => {
+        if (!line.trim()) return;
         
-        // Enhanced follower parsing patterns
-        const followerPatterns = [
-          /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*followers?/i,
-          /(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?\s*followers?/i,
-          /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?/i,
-          /([\d,]+\.?\d*)\s*followers?/i,
-          /(\d+(?:,\d{3})*)\s*followers?/i
-        ];
-
-        // Parse from scraped data first (most reliable)
-        for (const pattern of followerPatterns) {
-          const match = line.match(pattern);
-          if (match) {
-            followers = parseFollowerText(match[0]);
-            console.log('Found followers from scraped text:', followers, 'from:', match[0]);
-            if (followers > 0) break; // Exit loop as soon as a match is found
-          }
-        }
-
-        // If CSV format, also try to extract from follower column
-        if (isCSV && followers === 0) {
-          const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
-          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-          const followerIndex = headers.findIndex(h => h.includes('follower') || h.includes('likes'));
+        // Split CSV line while handling quoted values
+        const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+        
+        if (urlIndex >= 0 && urlIndex < columns.length) {
+          const url = columns[urlIndex];
+          const followerText = followerIndex >= 0 && followerIndex < columns.length ? columns[followerIndex] : '';
           
-          if (followerIndex >= 0 && followerIndex < columns.length) {
-            const followerText = columns[followerIndex];
+          console.log('Processing CSV row:', { url, followerText });
+          
+          // Check if URL is an Instagram URL
+          const instagramUrlMatch = url.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:p\/[^\/\s,"]+|reel\/[^\/\s,"]+|([^\/\s,"]+))/);
+          
+          if (instagramUrlMatch) {
+            const cleanUrl = url.split('?')[0].replace(/\/$/, '');
+            
+            if (seenUrls.has(cleanUrl)) return;
+            seenUrls.add(cleanUrl);
+
+            let userId = '';
+            let brandName = '';
+            let confidence: 'high' | 'medium' | 'low' = 'medium';
+
+            if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
+              const usernameMatch = line.match(/@([a-zA-Z0-9._]+)/);
+              if (usernameMatch) {
+                userId = usernameMatch[1];
+                confidence = 'low';
+              } else {
+                const contextMatch = cleanUrl.match(/instagram\.com\/([^\/\s,"]+)/);
+                if (contextMatch) {
+                  userId = contextMatch[1];
+                  confidence = 'low';
+                }
+              }
+            } else {
+              const urlParts = cleanUrl.split('/');
+              userId = urlParts[3] || '';
+              confidence = 'high';
+            }
+
+            if (!userId || seenProfiles.has(userId)) return;
+            seenProfiles.add(userId);
+
+            brandName = userId.replace(/_/g, ' ').replace(/\./g, ' ');
+            brandName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
+
+            // Parse follower count from CSV column
+            let followers = 0;
             if (followerText) {
-              followers = parseFollowerText(followerText);
-              console.log('Found followers from CSV column:', followers, 'from:', followerText);
+              console.log('Parsing follower text from CSV:', followerText);
+              
+              const followerPatterns = [
+                /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*followers?/i,
+                /([\d,]+\.?\d*)\s*([kKmMlL])\+?/i,
+                /(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?/i,
+                /([\d,]+\.?\d*)/
+              ];
+              
+              for (const pattern of followerPatterns) {
+                const followerMatch = followerText.match(pattern);
+                if (followerMatch) {
+                  console.log('Found CSV follower match:', followerMatch);
+                  let number = parseFloat(followerMatch[1].replace(/,/g, ''));
+                  const unit = followerMatch[2]?.toLowerCase();
+
+                  if (unit === 'k') {
+                    number *= 1000;
+                  } else if (unit === 'm') {
+                    number *= 1000000;
+                  } else if (unit === 'l') {
+                    number *= 100000; // L = Lakh = 100,000 in Indian numbering
+                  }
+                  
+                  followers = Math.round(number);
+                  console.log('Parsed CSV followers:', followers);
+                  break;
+                }
+              }
+            }
+
+            const lead: InstagramLead = {
+              id: `${index}-${userId}-${Date.now()}`,
+              url: cleanUrl,
+              brandName,
+              userId,
+              followers,
+              category,
+              city,
+              confidence
+            };
+
+            if (confidence === 'high' || confidence === 'medium') {
+              confirmedLeads.push(lead);
+            } else {
+              unconfirmedLeads.push(lead);
             }
           }
         }
+      });
+    } else {
+      // Handle raw text format (existing logic)
+      lines.forEach((line, index) => {
+        const instagramUrlMatches = line.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:p\/[^\/\s,"]+|reel\/[^\/\s,"]+|[^\/\s,"]+)/g);
+        
+        if (instagramUrlMatches) {
+          instagramUrlMatches.forEach(fullUrl => {
+            const cleanUrl = fullUrl.split('?')[0].replace(/\/$/, '');
+            
+            if (seenUrls.has(cleanUrl)) return;
+            seenUrls.add(cleanUrl);
 
-        preliminaryLeads.push({ 
-          id: `${index}-${userId}-${Date.now()}`, 
-          url: cleanUrl, 
-          brandName, 
-          userId, 
-          followers, 
-          category, 
-          city, 
-          confidence 
-        });
-      }
-    }
+            let userId = '';
+            let brandName = '';
+            let confidence: 'high' | 'medium' | 'low' = 'medium';
 
-    // --- STAGE 2: Targeted Fallback Enrichment ---
-    // Now, iterate ONLY over the leads where we couldn't find followers and try the CSS fallback.
-    for (const lead of preliminaryLeads) {
-      if (lead.followers === 0) {
-        try {
-          // PRIORITY #2 (FALLBACK): Use CSS selector only if followers are unknown.
-          const followersFromCss = await extractFollowersFromCSS(lead.url);
-          if (followersFromCss > 0) {
-            lead.followers = followersFromCss;
-            console.log('Enhanced followers via CSS for:', lead.url, 'followers:', followersFromCss);
-          }
-        } catch (error) {
-          console.error('CSS extraction fallback failed for:', lead.url, error);
+            if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
+              const usernameMatch = line.match(/@([a-zA-Z0-9._]+)/);
+              if (usernameMatch) {
+                userId = usernameMatch[1];
+                confidence = 'low';
+              } else {
+                const contextMatch = line.match(/instagram\.com\/([^\/\s,"]+)/);
+                if (contextMatch) {
+                  userId = contextMatch[1];
+                  confidence = 'low';
+                }
+              }
+            } else {
+              const urlParts = cleanUrl.split('/');
+              userId = urlParts[3] || '';
+              confidence = 'high';
+            }
+
+            if (!userId || seenProfiles.has(userId)) return;
+            seenProfiles.add(userId);
+
+            brandName = userId.replace(/_/g, ' ').replace(/\./g, ' ');
+            brandName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
+
+            let followers = 0;
+            console.log('Processing text line:', line);
+            
+            const followerPatterns = [
+              /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*followers?/i,
+              /([\d,]+\.?\d*)\s*([kKmMlL])\+?\s*follower/i,
+              /(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?\s*followers?/i,
+              /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMlL])\+?/i,
+              /([\d,]+\.?\d*)\s*followers?/i,
+              /(\d+(?:,\d{3})*(?:\.\d+)?)\s*followers?/i
+            ];
+            
+            for (const pattern of followerPatterns) {
+              const followerMatch = line.match(pattern);
+              if (followerMatch) {
+                console.log('Found text follower match:', followerMatch);
+                let number = parseFloat(followerMatch[1].replace(/,/g, ''));
+                const unit = followerMatch[2]?.toLowerCase();
+
+                if (unit === 'k') {
+                  number *= 1000;
+                } else if (unit === 'm') {
+                  number *= 1000000;
+                } else if (unit === 'l') {
+                  number *= 100000;
+                }
+                
+                followers = Math.round(number);
+                console.log('Parsed text followers:', followers);
+                break;
+              }
+            }
+
+            const lead: InstagramLead = {
+              id: `${index}-${userId}-${Date.now()}`,
+              url: cleanUrl,
+              brandName,
+              userId,
+              followers,
+              category,
+              city,
+              confidence
+            };
+
+            if (confidence === 'high' || confidence === 'medium') {
+              confirmedLeads.push(lead);
+            } else {
+              unconfirmedLeads.push(lead);
+            }
+          });
         }
-      }
-    }
-
-    // --- STAGE 3: Final Categorization ---
-    const confirmedLeads: InstagramLead[] = [];
-    const unconfirmedLeads: InstagramLead[] = [];
-    for (const lead of preliminaryLeads) {
-      if (lead.confidence === 'high' || lead.confidence === 'medium') {
-        confirmedLeads.push(lead);
-      } else {
-        unconfirmedLeads.push(lead);
-      }
+      });
     }
 
     return { confirmed: confirmedLeads, unconfirmed: unconfirmedLeads };
@@ -352,7 +437,7 @@ const Index = () => {
     setDataHistory(prev => [historyItem, ...prev.slice(0, 9)]); // Keep only last 10 items
   };
 
-  const cleanAndFilterData = async () => {
+  const cleanAndFilterData = () => {
     if (!rawData.trim()) {
       toast({
         title: "No Data Found",
@@ -364,35 +449,38 @@ const Index = () => {
 
     setIsProcessing(true);
 
-    // The async logic now runs immediately without the setTimeout wrapper.
-    const { confirmed, unconfirmed } = await parseInstagramData(rawData);
+    setTimeout(() => {
+      const { confirmed, unconfirmed } = parseInstagramData(rawData);
+      
+      // Apply follower filter if specified
+      let filteredConfirmed = confirmed;
+      let filteredUnconfirmed = unconfirmed;
+      
+      if (minFollowers && parseInt(minFollowers) > 0) {
+        const minCount = parseInt(minFollowers);
+        filteredConfirmed = confirmed.filter(lead => 
+          lead.followers >= minCount || lead.followers === 0
+        );
+        filteredUnconfirmed = unconfirmed.filter(lead => 
+          lead.followers >= minCount || lead.followers === 0
+        );
+      }
 
-    let filteredConfirmed = confirmed;
-    let filteredUnconfirmed = unconfirmed;
+      setLeads(filteredConfirmed);
+      setUnconfirmedLeads(filteredUnconfirmed);
+      
+      // Save to history
+      if (filteredConfirmed.length > 0 || filteredUnconfirmed.length > 0) {
+        saveDataToHistory(filteredConfirmed, filteredUnconfirmed);
+      }
+      
+      setIsProcessing(false);
 
-    if (minFollowers && parseInt(minFollowers) > 0) {
-      const minCount = parseInt(minFollowers);
-      filteredConfirmed = confirmed.filter(lead => 
-        lead.followers >= minCount || lead.followers === 0
-      );
-      filteredUnconfirmed = unconfirmed.filter(lead => 
-        lead.followers >= minCount || lead.followers === 0
-      );
-    }
-
-    setLeads(filteredConfirmed);
-    setUnconfirmedLeads(filteredUnconfirmed);
-
-    if (filteredConfirmed.length > 0 || filteredUnconfirmed.length > 0) {
-      saveDataToHistory(filteredConfirmed, filteredUnconfirmed);
-    }
-
-    setIsProcessing(false);
-
-    toast({
-      title: "Data Processed Successfully!",
-      description: `Found ${filteredConfirmed.length} confirmed leads and ${filteredUnconfirmed.length} unconfirmed leads.`
-    });
+      toast({
+        title: "Data Processed Successfully!",
+        description: `Found ${filteredConfirmed.length} confirmed leads and ${filteredUnconfirmed.length} unconfirmed leads.`
+      });
+    }, 2000);
   };
 
   const formatFollowers = (count: number) => {
@@ -445,37 +533,33 @@ const Index = () => {
       ? [...filteredAndSortedLeads, ...filteredAndSortedUnconfirmed]
       : filteredAndSortedLeads;
 
-    // Define headers for the CSV file
     const headers = ["Brand Name", "Instagram URL", "User ID", "Followers", "Category", "City", "Confidence"];
-    
-    // Map your lead data to the format Papaparse expects (array of arrays)
-    const csvDataArray = [
-      headers,
-      ...dataToExport.map(lead => [
-        lead.brandName,
-        lead.url,
-        lead.userId,
-        lead.followers,
-        lead.category,
-        lead.city,
-        lead.confidence
-      ])
-    ];
+    const csvData = [
+      headers.join(","),
+      ...dataToExport.map(lead => 
+        [
+          `"${lead.brandName}"`,
+          lead.url,
+          lead.userId,
+          lead.followers,
+          `"${lead.category}"`,
+          `"${lead.city}"`,
+          lead.confidence
+        ].join(",")
+      )
+    ].join("\n");
 
-    // Use Papaparse to safely convert the array to a CSV string
-    const csvData = Papa.unparse(csvDataArray);
-
-    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csvData], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `instagram-leads-${category}-${city}-${includeUnconfirmed ? 'all' : 'confirmed'}.csv`;
+    a.download = `instagram-leads-${category}-${city}-${includeUnconfirmed ? 'all' : 'confirmed'}.${format === "csv" ? "csv" : "xlsx"}`;
     a.click();
     window.URL.revokeObjectURL(url);
 
     toast({
       title: "Export Complete!",
-      description: `Downloaded ${dataToExport.length} leads as CSV.`
+      description: `Downloaded ${dataToExport.length} leads as ${format.toUpperCase()}.`
     });
   };
 
@@ -503,27 +587,23 @@ const Index = () => {
       ? [...item.data.confirmed, ...item.data.unconfirmed]
       : item.data.confirmed;
 
-    // Define headers for the CSV file
     const headers = ["Brand Name", "Instagram URL", "User ID", "Followers", "Category", "City", "Confidence"];
-    
-    // Map your lead data to the format Papaparse expects (array of arrays)
-    const csvDataArray = [
-      headers,
-      ...dataToExport.map(lead => [
-        lead.brandName,
-        lead.url,
-        lead.userId,
-        lead.followers,
-        lead.category,
-        lead.city,
-        lead.confidence
-      ])
-    ];
+    const csvData = [
+      headers.join(","),
+      ...dataToExport.map(lead => 
+        [
+          `"${lead.brandName}"`,
+          lead.url,
+          lead.userId,
+          lead.followers,
+          `"${lead.category}"`,
+          `"${lead.city}"`,
+          lead.confidence
+        ].join(",")
+      )
+    ].join("\n");
 
-    // Use Papaparse to safely convert the array to a CSV string
-    const csvData = Papa.unparse(csvDataArray);
-
-    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csvData], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
