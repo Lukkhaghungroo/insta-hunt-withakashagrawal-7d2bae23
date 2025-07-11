@@ -3,6 +3,32 @@ import { supabase } from '@/integrations/supabase/client';
 import { InstagramLead } from '@/types/InstagramLead';
 import { useToast } from '@/hooks/use-toast';
 
+// Type definitions for our database tables (temporary until types are regenerated)
+interface Profile {
+  id: string;
+  username: string;
+  url: string;
+  brand_name: string;
+  followers: number;
+  bio: string;
+  category: string;
+  city: string;
+  confidence: 'high' | 'medium' | 'low';
+  bio_embedding?: number[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface ScrapingSession {
+  id: string;
+  category: string;
+  city: string;
+  total_profiles: number;
+  confirmed_profiles: number;
+  unconfirmed_profiles: number;
+  created_at: string;
+}
+
 interface SaveSessionData {
   category: string;
   city: string;
@@ -23,7 +49,7 @@ export const useProfiles = () => {
     setLoading(true);
     try {
       // Create scraping session
-      const { data: session, error: sessionError } = await supabase
+      const { data: session, error: sessionError } = await (supabase as any)
         .from('scraping_sessions')
         .insert({
           category: data.category,
@@ -51,7 +77,7 @@ export const useProfiles = () => {
       }));
 
       // Insert profiles (use upsert to handle duplicates)
-      const { data: insertedProfiles, error: profilesError } = await supabase
+      const { data: insertedProfiles, error: profilesError } = await (supabase as any)
         .from('profiles')
         .upsert(profilesToInsert, { 
           onConflict: 'username',
@@ -66,7 +92,7 @@ export const useProfiles = () => {
         description: `Saved ${insertedProfiles?.length || 0} profiles to database.`,
       });
 
-      return { sessionId: session.id, profileCount: insertedProfiles?.length || 0 };
+      return { sessionId: session?.id, profileCount: insertedProfiles?.length || 0 };
     } catch (error: any) {
       console.error('Error saving profiles:', error);
       toast({
@@ -88,7 +114,7 @@ export const useProfiles = () => {
   }) => {
     setLoading(true);
     try {
-      let query = supabase.from('profiles').select('*');
+      let query = (supabase as any).from('profiles').select('*');
 
       if (filters?.category) {
         query = query.ilike('category', `%${filters.category}%`);
@@ -108,7 +134,7 @@ export const useProfiles = () => {
       if (error) throw error;
 
       // Convert to InstagramLead format
-      return data?.map(profile => ({
+      return (data as Profile[])?.map(profile => ({
         id: profile.id,
         url: profile.url,
         brandName: profile.brand_name,
@@ -135,7 +161,7 @@ export const useProfiles = () => {
     setLoading(true);
     try {
       // For now, implement basic text search until AI embeddings are ready
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('profiles')
         .select('*')
         .or(`brand_name.ilike.%${query}%,bio.ilike.%${query}%,category.ilike.%${query}%`)
@@ -144,7 +170,7 @@ export const useProfiles = () => {
 
       if (error) throw error;
 
-      return data?.map(profile => ({
+      return (data as Profile[])?.map(profile => ({
         profiles: [{
           id: profile.id,
           url: profile.url,
@@ -172,17 +198,16 @@ export const useProfiles = () => {
 
   const getProfileStats = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('profiles')
-        .select('category, city, confidence')
-        .select('count');
+        .select('category, city, confidence');
 
       if (error) throw error;
 
       return {
         totalProfiles: data?.length || 0,
-        categories: [...new Set(data?.map(p => p.category).filter(Boolean))] || [],
-        cities: [...new Set(data?.map(p => p.city).filter(Boolean))] || [],
+        categories: data ? [...new Set((data as Profile[]).map(p => p.category).filter(Boolean))] : [],
+        cities: data ? [...new Set((data as Profile[]).map(p => p.city).filter(Boolean))] : [],
       };
     } catch (error: any) {
       console.error('Error fetching stats:', error);
