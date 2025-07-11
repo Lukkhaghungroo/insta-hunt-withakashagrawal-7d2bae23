@@ -3,8 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { InstagramLead } from '@/types/InstagramLead';
 import { useToast } from '@/hooks/use-toast';
 
-// Type definitions for our database tables (temporary until types are regenerated)
-interface Profile {
+// Database types
+interface DatabaseProfile {
   id: string;
   username: string;
   url: string;
@@ -14,19 +14,9 @@ interface Profile {
   category: string;
   city: string;
   confidence: 'high' | 'medium' | 'low';
-  bio_embedding?: number[];
   created_at: string;
   updated_at: string;
-}
-
-interface ScrapingSession {
-  id: string;
-  category: string;
-  city: string;
-  total_profiles: number;
-  confirmed_profiles: number;
-  unconfirmed_profiles: number;
-  created_at: string;
+  bio_embedding?: number[];
 }
 
 interface SaveSessionData {
@@ -92,7 +82,7 @@ export const useProfiles = () => {
         description: `Saved ${insertedProfiles?.length || 0} profiles to database.`,
       });
 
-      return { sessionId: session?.id, profileCount: insertedProfiles?.length || 0 };
+      return { sessionId: session?.id || '', profileCount: insertedProfiles?.length || 0 };
     } catch (error: any) {
       console.error('Error saving profiles:', error);
       toast({
@@ -134,7 +124,7 @@ export const useProfiles = () => {
       if (error) throw error;
 
       // Convert to InstagramLead format
-      return (data as Profile[])?.map(profile => ({
+      return data?.map((profile: DatabaseProfile) => ({
         id: profile.id,
         url: profile.url,
         brandName: profile.brand_name,
@@ -142,7 +132,7 @@ export const useProfiles = () => {
         followers: profile.followers,
         category: profile.category,
         city: profile.city,
-        confidence: profile.confidence as 'high' | 'medium' | 'low',
+        confidence: profile.confidence,
       })) || [];
     } catch (error: any) {
       console.error('Error fetching profiles:', error);
@@ -170,7 +160,7 @@ export const useProfiles = () => {
 
       if (error) throw error;
 
-      return (data as Profile[])?.map(profile => ({
+      return data?.map((profile: DatabaseProfile) => ({
         profiles: [{
           id: profile.id,
           url: profile.url,
@@ -179,7 +169,7 @@ export const useProfiles = () => {
           followers: profile.followers,
           category: profile.category,
           city: profile.city,
-          confidence: profile.confidence as 'high' | 'medium' | 'low',
+          confidence: profile.confidence,
         }],
         similarity: 0.8 // Placeholder similarity score
       })) || [];
@@ -204,10 +194,13 @@ export const useProfiles = () => {
 
       if (error) throw error;
 
+      const categories = data ? [...new Set(data.map((p: DatabaseProfile) => p.category).filter(Boolean))] : [];
+      const cities = data ? [...new Set(data.map((p: DatabaseProfile) => p.city).filter(Boolean))] : [];
+      
       return {
         totalProfiles: data?.length || 0,
-        categories: data ? [...new Set((data as Profile[]).map(p => p.category).filter(Boolean))] : [],
-        cities: data ? [...new Set((data as Profile[]).map(p => p.city).filter(Boolean))] : [],
+        categories,
+        cities,
       };
     } catch (error: any) {
       console.error('Error fetching stats:', error);

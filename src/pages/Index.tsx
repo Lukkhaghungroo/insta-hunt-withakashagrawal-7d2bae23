@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Download, Filter, Users, MapPin, Instagram, Loader2, Upload, ExternalLink, Copy, CheckCircle, AlertTriangle, History, BarChart3 } from "lucide-react";
+import { Search, Download, Filter, Users, MapPin, Instagram, Loader2, Upload, ExternalLink, Copy, CheckCircle, AlertTriangle, History, BarChart3, Database, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import ThemeToggle from "@/components/ThemeToggle";
 import DataHistory from "@/components/DataHistory";
+import SmartSearch from "@/components/SmartSearch";
+import DatabaseManager from "@/components/DatabaseManager";
+import QATestingSuite from "@/components/QATestingSuite";
 import { InstagramLead } from "@/types/InstagramLead";
 import { parseFollowerCount, extractUsernameFromUrl, formatBrandName } from "@/utils/followerExtractor";
+import { useProfiles } from "@/hooks/useProfiles";
 
 interface DataHistoryItem {
   id: string;
@@ -42,6 +46,7 @@ const Index = () => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [dataHistory, setDataHistory] = useState<DataHistoryItem[]>([]);
   const { toast } = useToast();
+  const { saveProfilesToDatabase, loading: dbLoading } = useProfiles();
 
   // Load data history from localStorage on component mount
   useEffect(() => {
@@ -380,7 +385,7 @@ const Index = () => {
     setDataHistory(prev => [historyItem, ...prev.slice(0, 9)]); // Keep only last 10 items
   };
 
-  const cleanAndFilterData = () => {
+  const cleanAndFilterData = async () => {
     if (!rawData.trim()) {
       toast({
         title: "No Data Found",
@@ -392,7 +397,7 @@ const Index = () => {
 
     setIsProcessing(true);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const { confirmed, unconfirmed } = parseInstagramData(rawData);
       
       // Apply follower filter if specified
@@ -411,6 +416,18 @@ const Index = () => {
 
       setLeads(filteredConfirmed);
       setUnconfirmedLeads(filteredUnconfirmed);
+
+      // Save to database
+      try {
+        await saveProfilesToDatabase({
+          category: category || 'Unknown',
+          city: city || 'Unknown',
+          confirmedProfiles: filteredConfirmed,
+          unconfirmedProfiles: filteredUnconfirmed,
+        });
+      } catch (error) {
+        console.error('Error saving to database:', error);
+      }
       
       // Save to history
       if (filteredConfirmed.length > 0 || filteredUnconfirmed.length > 0) {
@@ -421,7 +438,7 @@ const Index = () => {
 
       toast({
         title: "Data Processed Successfully!",
-        description: `Found ${filteredConfirmed.length} confirmed leads and ${filteredUnconfirmed.length} unconfirmed leads.`
+        description: `Found ${filteredConfirmed.length} confirmed leads and ${filteredUnconfirmed.length} unconfirmed leads. Saved to database.`
       });
     }, 2000);
   };
@@ -585,9 +602,12 @@ const Index = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         <Tabs defaultValue="generator" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 glass border-white/20 dark:border-white/20 border-gray-200">
-            <TabsTrigger value="generator" className="text-gray-800 dark:text-white">Lead Generator</TabsTrigger>
-            <TabsTrigger value="history" className="text-gray-800 dark:text-white">Data History</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5 glass border-white/20 dark:border-white/20 border-gray-200">
+            <TabsTrigger value="generator" className="text-gray-800 dark:text-white">Fresh Scrape</TabsTrigger>
+            <TabsTrigger value="smart-search" className="text-gray-800 dark:text-white">Smart Search</TabsTrigger>
+            <TabsTrigger value="database" className="text-gray-800 dark:text-white">Database</TabsTrigger>
+            <TabsTrigger value="history" className="text-gray-800 dark:text-white">History</TabsTrigger>
+            <TabsTrigger value="qa" className="text-gray-800 dark:text-white">QA Tests</TabsTrigger>
           </TabsList>
           
           <TabsContent value="generator" className="space-y-8">
@@ -1006,6 +1026,14 @@ const Index = () => {
             )}
           </TabsContent>
 
+          <TabsContent value="smart-search" className="space-y-6">
+            <SmartSearch onProfilesFound={(profiles) => setLeads(profiles)} />
+          </TabsContent>
+
+          <TabsContent value="database" className="space-y-6">
+            <DatabaseManager onProfilesLoaded={(profiles) => setLeads(profiles)} />
+          </TabsContent>
+
           <TabsContent value="history" className="space-y-6">
             <DataHistory 
               history={dataHistory}
@@ -1013,6 +1041,10 @@ const Index = () => {
               onDeleteItem={deleteHistoryItem}
               onExportItem={exportHistoryItem}
             />
+          </TabsContent>
+
+          <TabsContent value="qa" className="space-y-6">
+            <QATestingSuite />
           </TabsContent>
         </Tabs>
       </div>
