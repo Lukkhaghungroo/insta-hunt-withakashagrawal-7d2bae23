@@ -21,9 +21,9 @@ serve(async (req) => {
   }
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
+      throw new Error('Gemini API key not configured');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -48,26 +48,26 @@ serve(async (req) => {
       });
     }
 
-    // Generate embedding using OpenAI
-    const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+    // Generate embedding using Gemini
+    const embeddingResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        input: profile.bio,
-        model: 'text-embedding-3-small',
-        dimensions: 384,
+        content: {
+          parts: [{ text: profile.bio }]
+        },
+        outputDimensionality: 384,
       }),
     });
 
     if (!embeddingResponse.ok) {
-      throw new Error(`OpenAI API error: ${embeddingResponse.statusText}`);
+      throw new Error(`Gemini API error: ${embeddingResponse.statusText}`);
     }
 
     const embeddingData = await embeddingResponse.json();
-    const embedding = embeddingData.data[0].embedding;
+    const embedding = embeddingData.embedding.values;
 
     // Update profile with embedding
     const { error: updateError } = await supabase
