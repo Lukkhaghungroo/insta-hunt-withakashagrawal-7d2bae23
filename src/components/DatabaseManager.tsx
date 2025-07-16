@@ -19,8 +19,8 @@ const DatabaseManager = ({ onProfilesLoaded }: DatabaseManagerProps) => {
   const [profiles, setProfiles] = useState<InstagramLead[]>([]);
   const [stats, setStats] = useState({ totalProfiles: 0, categories: [], cities: [] });
   const [filters, setFilters] = useState({
-    category: "",
-    city: "",
+    category: "all",
+    city: "all",
     minFollowers: "",
     maxFollowers: ""
   });
@@ -31,8 +31,8 @@ const DatabaseManager = ({ onProfilesLoaded }: DatabaseManagerProps) => {
   const loadProfiles = async () => {
     try {
       const filterParams = {
-        category: filters.category || undefined,
-        city: filters.city || undefined,
+        category: filters.category !== "all" ? filters.category : undefined,
+        city: filters.city !== "all" ? filters.city : undefined,
         minFollowers: filters.minFollowers ? parseInt(filters.minFollowers) : undefined,
         maxFollowers: filters.maxFollowers ? parseInt(filters.maxFollowers) : undefined,
       };
@@ -137,7 +137,7 @@ const DatabaseManager = ({ onProfilesLoaded }: DatabaseManagerProps) => {
                   <SelectValue placeholder="All categories" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All categories</SelectItem>
+                  <SelectItem value="all">All categories</SelectItem>
                   {stats.categories.map((category) => (
                     <SelectItem key={category} value={category}>{category}</SelectItem>
                   ))}
@@ -152,7 +152,7 @@ const DatabaseManager = ({ onProfilesLoaded }: DatabaseManagerProps) => {
                   <SelectValue placeholder="All cities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All cities</SelectItem>
+                  <SelectItem value="all">All cities</SelectItem>
                   {stats.cities.map((city) => (
                     <SelectItem key={city} value={city}>{city}</SelectItem>
                   ))}
