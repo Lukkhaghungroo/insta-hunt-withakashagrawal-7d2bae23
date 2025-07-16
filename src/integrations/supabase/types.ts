@@ -14,7 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          bio: string | null
+          bio_embedding: string | null
+          brand_name: string | null
+          category: string | null
+          city: string | null
+          confidence: string | null
+          created_at: string
+          followers: number | null
+          id: string
+          session_id: string | null
+          updated_at: string
+          url: string
+          username: string
+        }
+        Insert: {
+          bio?: string | null
+          bio_embedding?: string | null
+          brand_name?: string | null
+          category?: string | null
+          city?: string | null
+          confidence?: string | null
+          created_at?: string
+          followers?: number | null
+          id?: string
+          session_id?: string | null
+          updated_at?: string
+          url: string
+          username: string
+        }
+        Update: {
+          bio?: string | null
+          bio_embedding?: string | null
+          brand_name?: string | null
+          category?: string | null
+          city?: string | null
+          confidence?: string | null
+          created_at?: string
+          followers?: number | null
+          id?: string
+          session_id?: string | null
+          updated_at?: string
+          url?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "scraping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scraping_sessions: {
+        Row: {
+          category: string
+          city: string
+          confirmed_profiles: number
+          created_at: string
+          id: string
+          total_profiles: number
+          unconfirmed_profiles: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          city: string
+          confirmed_profiles?: number
+          created_at?: string
+          id?: string
+          total_profiles?: number
+          unconfirmed_profiles?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          city?: string
+          confirmed_profiles?: number
+          created_at?: string
+          id?: string
+          total_profiles?: number
+          unconfirmed_profiles?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

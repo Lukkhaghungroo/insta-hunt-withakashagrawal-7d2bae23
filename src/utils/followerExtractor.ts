@@ -21,9 +21,6 @@ export const parseFollowerCount = (text: string): number => {
     /([\d,]+\.?\d*)\s*([kKmMbB])\+?\s*followers?/i,
     /([\d,]+\.?\d*)\s*([kKmMbB])\+?\s*follower/i,
     
-    // Number with units without "followers" text
-    /([\d,]+\.?\d*)\s*([kKmMbB])\+?/i,
-    
     // Raw numbers with "followers"
     /(\d+(?:,\d{3})*(?:\.\d+)?)\s*followers?/i,
     
@@ -33,8 +30,14 @@ export const parseFollowerCount = (text: string): number => {
     // Indian format with L (Lakh)
     /([\d,]+\.?\d*)\s*([lL])\+?\s*followers?/i,
     
-    // Just numbers (last resort)
-    /(\d+(?:,\d{3})*(?:\.\d+)?)/
+    // Number with units (more specific patterns first)
+    /([\d,]+\.?\d*)\s*([kKmMbB])\+?\s*(?![\w])/i,
+    
+    // Just large numbers (with commas) - be more selective
+    /(\d{1,3}(?:,\d{3})+)(?!\s*[a-zA-Z])/,
+    
+    // Just medium numbers (without units) - only if no other numbers found
+    /(\d{4,})(?!\s*[a-zA-Z])/
   ];
   
   for (const pattern of patterns) {
@@ -57,7 +60,11 @@ export const parseFollowerCount = (text: string): number => {
       
       const result = Math.round(number);
       console.log('Parsed followers:', result);
-      return result;
+      
+      // Return only if the number makes sense for Instagram followers
+      if (result >= 1 && result <= 1000000000) {
+        return result;
+      }
     }
   }
   
@@ -84,12 +91,68 @@ export const extractUsernameFromUrl = (url: string): string => {
   }
 };
 
-// Enhanced brand name formatting
+// Enhanced brand name formatting with better intelligence
 export const formatBrandName = (username: string): string => {
-  if (!username) return '';
+  if (!username) return 'Unknown';
   
-  return username
+  // If username starts with 'unknown_', try to create a better name
+  if (username.startsWith('unknown_')) {
+    return `Profile ${username.replace('unknown_', '')}`;
+  }
+  
+  // Remove common prefixes/suffixes that aren't part of brand names
+  let cleaned = username
+    .replace(/^(the|official|real)_?/i, '')
+    .replace(/_(official|real|page)$/i, '');
+  
+  // Format the name
+  return cleaned
     .replace(/[._]/g, ' ')
     .replace(/\b\w/g, char => char.toUpperCase())
-    .trim();
+    .trim() || 'Unknown Brand';
+};
+
+// Enhanced function to extract meaningful data from various text formats
+export const extractProfileInfo = (text: string, url: string): { username: string; brandName: string; confidence: 'high' | 'medium' | 'low'; bio?: string } => {
+  const cleanUrl = url.split('?')[0].replace(/\/$/, '');
+  let username = '';
+  let confidence: 'high' | 'medium' | 'low' = 'low';
+  let bio = '';
+  
+  // Extract bio information if available
+  const bioMatch = text.match(/bio[:\s]*(.*?)(?:\n|$|followers|following)/i);
+  if (bioMatch) {
+    bio = bioMatch[1].trim();
+  }
+  
+  if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
+    // For post/reel URLs, try to extract username from context
+    const usernameMatches = [
+      text.match(/@([a-zA-Z0-9._]+)/),
+      text.match(/by\s+([a-zA-Z0-9._]+)/i),
+      text.match(/([a-zA-Z0-9._]+)\s+•/),
+      text.match(/username[:\s]*([a-zA-Z0-9._]+)/i)
+    ];
+    
+    for (const match of usernameMatches) {
+      if (match && match[1] && match[1].length > 2) {
+        username = match[1];
+        confidence = 'medium';
+        break;
+      }
+    }
+    
+    if (!username) {
+      username = extractUsernameFromUrl(cleanUrl) || `profile_${Date.now()}`;
+      confidence = 'low';
+    }
+  } else {
+    // Direct profile URL
+    username = extractUsernameFromUrl(cleanUrl) || '';
+    confidence = username ? 'high' : 'low';
+  }
+  
+  const brandName = formatBrandName(username);
+  
+  return { username, brandName, confidence, bio };
 };

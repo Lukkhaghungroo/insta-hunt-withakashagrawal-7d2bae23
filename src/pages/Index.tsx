@@ -13,8 +13,9 @@ import DataHistory from "@/components/DataHistory";
 import SmartSearch from "@/components/SmartSearch";
 import DatabaseManager from "@/components/DatabaseManager";
 import QATestingSuite from "@/components/QATestingSuite";
+import ComprehensiveQA from "@/components/ComprehensiveQA";
 import { InstagramLead } from "@/types/InstagramLead";
-import { parseFollowerCount, extractUsernameFromUrl, formatBrandName } from "@/utils/followerExtractor";
+import { parseFollowerCount, extractUsernameFromUrl, formatBrandName, extractProfileInfo } from "@/utils/followerExtractor";
 import { useProfiles } from "@/hooks/useProfiles";
 
 interface DataHistoryItem {
@@ -81,17 +82,17 @@ const Index = () => {
       return;
     }
 
-    // Generate Ecosia-optimized search URL
+    // Generate Google search URL with num=100 parameter
     const searchQuery = `site:instagram.com "${category.trim()}" "${city.trim()}"`;
     const encodedQuery = encodeURIComponent(searchQuery);
     
-    // Create Ecosia search URL
-    const url = `https://www.ecosia.org/search?q=${encodedQuery}`;
+    // Create Google search URL with 100 results
+    const url = `https://www.google.com/search?q=${encodedQuery}&num=100`;
     
     setGeneratedUrl(url);
     toast({
-      title: "Ecosia Search URL Generated!",
-      description: "URL optimized for Ecosia search engine with eco-friendly search.",
+      title: "Google Search URL Generated!",
+      description: "URL optimized for Google search with 100 results per page.",
     });
   };
 
@@ -102,7 +103,7 @@ const Index = () => {
       setTimeout(() => setUrlCopied(false), 2000);
       toast({
         title: "URL Copied!",
-        description: "Use this URL in Ecosia to search for Instagram leads."
+        description: "Use this URL in Google to search for Instagram leads."
       });
     } catch (error) {
       toast({
@@ -113,7 +114,7 @@ const Index = () => {
     }
   };
 
-  const openInEcosia = () => {
+  const openInGoogle = () => {
     if (generatedUrl) {
       const newWindow = window.open();
       if (newWindow) {
@@ -165,29 +166,12 @@ const Index = () => {
             if (seenUrls.has(cleanUrl)) return;
             seenUrls.add(cleanUrl);
 
-            let userId = '';
-            let brandName = '';
-            let confidence: 'high' | 'medium' | 'low' = 'medium';
-
-            if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
-              // Try to extract username from context or line
-              const usernameMatch = line.match(/@([a-zA-Z0-9._]+)/);
-              if (usernameMatch) {
-                userId = usernameMatch[1];
-                confidence = 'medium';
-              } else {
-                userId = extractUsernameFromUrl(cleanUrl) || `unknown_${index}`;
-                confidence = 'low';
-              }
-            } else {
-              userId = extractUsernameFromUrl(cleanUrl) || '';
-              confidence = 'high';
-            }
+            // Use enhanced profile extraction
+            const profileInfo = extractProfileInfo(line, cleanUrl);
+            const { username: userId, brandName, confidence } = profileInfo;
 
             if (!userId || seenProfiles.has(userId)) return;
             seenProfiles.add(userId);
-
-            brandName = formatBrandName(userId);
 
             // Enhanced follower parsing with multiple attempts
             let followers = 0;
@@ -208,8 +192,8 @@ const Index = () => {
               brandName,
               userId,
               followers,
-              category,
-              city,
+              category: category || 'Unknown',
+              city: city || 'Unknown',
               confidence
             };
 
@@ -233,28 +217,12 @@ const Index = () => {
             if (seenUrls.has(cleanUrl)) return;
             seenUrls.add(cleanUrl);
 
-            let userId = '';
-            let brandName = '';
-            let confidence: 'high' | 'medium' | 'low' = 'medium';
-
-            if (cleanUrl.includes('/p/') || cleanUrl.includes('/reel/')) {
-              const usernameMatch = line.match(/@([a-zA-Z0-9._]+)/);
-              if (usernameMatch) {
-                userId = usernameMatch[1];
-                confidence = 'medium';
-              } else {
-                userId = extractUsernameFromUrl(cleanUrl) || `unknown_${index}`;
-                confidence = 'low';
-              }
-            } else {
-              userId = extractUsernameFromUrl(cleanUrl) || '';
-              confidence = 'high';
-            }
+            // Use enhanced profile extraction
+            const profileInfo = extractProfileInfo(line, cleanUrl);
+            const { username: userId, brandName, confidence } = profileInfo;
 
             if (!userId || seenProfiles.has(userId)) return;
             seenProfiles.add(userId);
-
-            brandName = formatBrandName(userId);
 
             // Enhanced follower parsing from the entire line
             const followers = parseFollowerCount(line);
@@ -265,8 +233,8 @@ const Index = () => {
               brandName,
               userId,
               followers,
-              category,
-              city,
+              category: category || 'Unknown',
+              city: city || 'Unknown',
               confidence
             };
 
@@ -616,10 +584,10 @@ const Index = () => {
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center space-x-2 text-gray-800 dark:text-white gothic-glow">
                   <Search className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  <span>Step 1: Generate Ecosia Search URL</span>
+                  <span>Step 1: Generate Google Search URL</span>
                 </CardTitle>
                 <CardDescription className="text-gray-600 dark:text-white/70">
-                  Generate eco-friendly search URLs optimized for Ecosia search engine
+                  Generate optimized search URLs for Google with 100 results per page
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -654,14 +622,14 @@ const Index = () => {
                       className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-medium py-2.5"
                     >
                       <Search className="h-4 w-4 mr-2" />
-                      Generate Ecosia URL
+                      Generate Google URL
                     </Button>
                   </div>
                 </div>
 
                 {generatedUrl && (
                   <div className="mt-6 p-4 glass rounded-lg border border-green-400/30 gothic-border">
-                    <label className="text-sm font-medium text-green-600 dark:text-green-200 mb-2 block gothic-accent">Ecosia Search URL (Eco-Friendly):</label>
+                    <label className="text-sm font-medium text-green-600 dark:text-green-200 mb-2 block gothic-accent">Google Search URL (100 Results):</label>
                     <div className="flex items-center space-x-2">
                       <Input
                         value={generatedUrl}
@@ -678,7 +646,7 @@ const Index = () => {
                         <span>{urlCopied ? "Copied!" : "Copy"}</span>
                       </Button>
                       <Button
-                        onClick={openInEcosia}
+                        onClick={openInGoogle}
                         variant="outline"
                         size="sm"
                         className="flex items-center space-x-1 glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
@@ -688,7 +656,7 @@ const Index = () => {
                       </Button>
                     </div>
                     <p className="text-xs text-green-600 dark:text-green-200 mt-2">
-                      🌱 Using Ecosia helps plant trees while you search for leads!
+                      🔍 Google search with 100 results per page for comprehensive lead discovery
                     </p>
                   </div>
                 )}
@@ -1044,7 +1012,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="qa" className="space-y-6">
-            <QATestingSuite />
+            <ComprehensiveQA />
           </TabsContent>
         </Tabs>
       </div>
