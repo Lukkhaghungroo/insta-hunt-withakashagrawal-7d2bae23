@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { InstagramLead } from "@/types/InstagramLead";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+// Removed Supabase import - now using server API
 
 interface SmartSearchProps {
   onProfilesFound: (profiles: InstagramLead[]) => void;
@@ -34,24 +34,20 @@ const SmartSearch = ({ onProfilesFound }: SmartSearchProps) => {
 
     setIsSearching(true);
     try {
-      // Call the smart search edge function via Supabase client
-      const { data, error } = await supabase.functions.invoke('smart-search', {
-        body: {
-          query: searchQuery,
-          limit: 50,
-          filters: {}
-        }
-      });
+      // Call the search API endpoint
+      const response = await fetch(`/api/profiles/search?q=${encodeURIComponent(searchQuery)}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-      if (error) throw error;
-
-      const result = data || {};
+      const data = await response.json();
 
       // Convert results to InstagramLead format
-      const profiles: InstagramLead[] = (result.results || []).map((item: any) => ({
+      const profiles: InstagramLead[] = (data || []).map((item: any) => ({
         id: item.id,
         url: item.url,
-        brandName: item.brand_name || item.brandName,
+        brandName: item.brandName || item.brand_name,
         userId: item.username || item.userId,
         followers: item.followers,
         category: item.category,
@@ -60,12 +56,12 @@ const SmartSearch = ({ onProfilesFound }: SmartSearchProps) => {
       }));
 
       setSearchResults(profiles);
-      setSearchType(result.searchType || 'text');
+      setSearchType('text'); // For now, we're using text search
       onProfilesFound(profiles);
 
       toast({
         title: "Smart Search Complete",
-        description: `Found ${profiles.length} relevant profiles using ${result.searchType === 'vector' ? 'AI semantic search' : 'text search'}.`,
+        description: `Found ${profiles.length} relevant profiles using text search.`,
       });
     } catch (error: any) {
       console.error('Smart search error:', error);
