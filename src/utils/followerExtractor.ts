@@ -69,20 +69,36 @@ export const parseFollowerCount = (text: string): number => {
 };
 
 // Enhanced username extraction from various formats
-export const extractUsernameFromUrl = (url: string): string => {
+export const extractUsernameFromUrl = (input: string): string => {
+  if (!input) return '';
+
+  // 1) Direct username like "+john.doe" or "@brand_name" or "brand.name"
+  const directUsername = input.trim().replace(/^[@+]/, '');
+  if (/^[a-zA-Z0-9._]{2,30}$/.test(directUsername)) {
+    return directUsername;
+  }
+
+  // 2) Try to normalize to a URL if missing scheme
+  const maybeUrl = input.startsWith('http') ? input : `https://${input.replace(/^\/+/, '')}`;
+
   try {
-    const urlObj = new URL(url);
-    const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
-    
-    // For profile URLs: instagram.com/username
-    if (pathParts.length >= 1 && !pathParts[0].includes('p') && !pathParts[0].includes('reel')) {
-      return pathParts[0];
+    const urlObj = new URL(maybeUrl);
+    // Only consider instagram domains
+    if (!/(^|\.)instagram\.com$/i.test(urlObj.hostname)) return '';
+
+    const pathParts = urlObj.pathname.split('/').filter(Boolean);
+    // Profile URL pattern: instagram.com/username[/]
+    if (pathParts.length >= 1 && !['p', 'reel', 'stories', 'explore'].includes(pathParts[0].toLowerCase())) {
+      const candidate = pathParts[0];
+      return /^[a-zA-Z0-9._]{2,30}$/.test(candidate) ? candidate : '';
     }
-    
-    // For post/reel URLs, try to extract from context
+
+    // Post/reel URLs won't contain username reliably
     return '';
-  } catch (error) {
-    console.error('Error extracting username from URL:', error);
+  } catch {
+    // 3) Fallback regex: extract username from embedded instagram.com URL fragments
+    const m = input.match(/instagram\.com\/(?:p\/[^\s/]+|reel\/[^\s/]+|([a-zA-Z0-9._]+))/i);
+    if (m && m[1] && /^[a-zA-Z0-9._]{2,30}$/.test(m[1])) return m[1];
     return '';
   }
 };

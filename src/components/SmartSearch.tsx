@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { InstagramLead } from "@/types/InstagramLead";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SmartSearchProps {
   onProfilesFound: (profiles: InstagramLead[]) => void;
@@ -33,28 +34,21 @@ const SmartSearch = ({ onProfilesFound }: SmartSearchProps) => {
 
     setIsSearching(true);
     try {
-      // Call the smart search edge function
-      const response = await fetch(`https://vpyxyyogujddyhqgapkv.supabase.co/functions/v1/smart-search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZweXh5eW9ndWpkZHlocWdhcGt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1NjY1MDAsImV4cCI6MjA2NzE0MjUwMH0.ESldrrW05CiRdRyWrablbCs2yM_MeIjDDF6MZ96zZ48'
-        },
-        body: JSON.stringify({
+      // Call the smart search edge function via Supabase client
+      const { data, error } = await supabase.functions.invoke('smart-search', {
+        body: {
           query: searchQuery,
           limit: 50,
           filters: {}
-        })
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.statusText}`);
-      }
+      if (error) throw error;
 
-      const result = await response.json();
-      
+      const result = data || {};
+
       // Convert results to InstagramLead format
-      const profiles = result.results?.map((item: any) => ({
+      const profiles: InstagramLead[] = (result.results || []).map((item: any) => ({
         id: item.id,
         url: item.url,
         brandName: item.brand_name || item.brandName,
@@ -63,7 +57,7 @@ const SmartSearch = ({ onProfilesFound }: SmartSearchProps) => {
         category: item.category,
         city: item.city,
         confidence: item.confidence,
-      })) || [];
+      }));
 
       setSearchResults(profiles);
       setSearchType(result.searchType || 'text');
