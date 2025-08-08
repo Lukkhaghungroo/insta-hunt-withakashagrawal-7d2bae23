@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle, XCircle, Play, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useProfiles } from "@/hooks/useProfiles";
-import { supabase } from "@/integrations/supabase/client";
+// Removed Supabase import - now using server API
 import { parseFollowerCount, extractUsernameFromUrl, formatBrandName, extractProfileInfo } from "@/utils/followerExtractor";
 
 interface ComprehensiveTest {
@@ -186,8 +186,9 @@ const ComprehensiveQA = () => {
   // Database Tests
   const testDatabaseConnection = async (): Promise<boolean> => {
     try {
-      const { data, error } = await supabase.from('profiles').select('count').limit(1);
-      if (error) throw error;
+      const response = await fetch('/api/profiles/stats');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await response.json();
       return true;
     } catch (error) {
       throw new Error(`Database connection failed: ${error}`);
@@ -196,13 +197,13 @@ const ComprehensiveQA = () => {
 
   const testDatabaseTables = async (): Promise<boolean> => {
     try {
-      // Test profiles table
-      const { error: profilesError } = await supabase.from('profiles').select('*').limit(1);
-      if (profilesError) throw new Error(`Profiles table: ${profilesError.message}`);
+      // Test profiles API
+      const profilesResponse = await fetch('/api/profiles?limit=1');
+      if (!profilesResponse.ok) throw new Error(`Profiles API: HTTP ${profilesResponse.status}`);
 
-      // Test scraping_sessions table
-      const { error: sessionsError } = await supabase.from('scraping_sessions').select('*').limit(1);
-      if (sessionsError) throw new Error(`Sessions table: ${sessionsError.message}`);
+      // Test sessions API
+      const sessionsResponse = await fetch('/api/sessions');
+      if (!sessionsResponse.ok) throw new Error(`Sessions API: HTTP ${sessionsResponse.status}`);
 
       return true;
     } catch (error) {
@@ -337,12 +338,15 @@ Another profile: https://instagram.com/brand_account 10,500 followers`;
   // Edge Function Tests
   const testBioAnalysis = async (): Promise<boolean> => {
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-bio', {
-        body: { bio: 'Fitness trainer and nutrition expert in Mumbai' }
+      const response = await fetch('/api/profiles/analyze-bio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bio: 'Fitness trainer and nutrition expert in Mumbai' })
       });
       
-      if (error) throw error;
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
+      const data = await response.json();
       return data && typeof data.category === 'string' && typeof data.city === 'string';
     } catch (error) {
       throw new Error(`Bio analysis failed: ${error}`);
@@ -361,15 +365,12 @@ Another profile: https://instagram.com/brand_account 10,500 followers`;
   const testVectorEmbeddings = async (): Promise<boolean> => {
     try {
       // Test if vector embeddings are being generated and stored
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('bio_embedding')
-        .not('bio_embedding', 'is', null)
-        .limit(1);
+      const response = await fetch('/api/profiles?hasEmbeddings=true&limit=1');
       
-      if (error) throw error;
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
-      return data && data.length >= 0; // Even 0 is okay if no embeddings exist yet
+      const data = await response.json();
+      return Array.isArray(data); // Even empty array is okay if no embeddings exist yet
     } catch (error) {
       throw new Error(`Vector embeddings test failed: ${error}`);
     }
