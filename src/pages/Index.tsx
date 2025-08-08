@@ -15,7 +15,7 @@ import DatabaseManager from "@/components/DatabaseManager";
 import QATestingSuite from "@/components/QATestingSuite";
 import ComprehensiveQA from "@/components/ComprehensiveQA";
 import { InstagramLead } from "@/types/InstagramLead";
-import { parseFollowerCount, extractUsernameFromUrl, formatBrandName, extractProfileInfo } from "@/utils/followerExtractor";
+import { parseFollowerCount, extractUsernameFromUrl, formatBrandName, extractProfileInfo, resolveFollowers } from "@/utils/followerExtractor";
 import { useProfiles } from "@/hooks/useProfiles";
 
 interface DataHistoryItem {
@@ -173,18 +173,8 @@ const Index = () => {
             if (!userId || seenProfiles.has(userId)) return;
             seenProfiles.add(userId);
 
-            // Enhanced follower parsing with multiple attempts
-            let followers = 0;
-            
-            // Try parsing from CSV column first
-            if (followerText) {
-              followers = parseFollowerCount(followerText);
-            }
-            
-            // If no followers found in CSV column, try parsing from entire line
-            if (followers === 0) {
-              followers = parseFollowerCount(line);
-            }
+            // Optimized follower resolution: prefer scraped column, then line
+            const followers = resolveFollowers(followerText || undefined, line);
 
             const lead: InstagramLead = {
               id: `${index}-${userId}-${Date.now()}`,
@@ -224,8 +214,8 @@ const Index = () => {
             if (!userId || seenProfiles.has(userId)) return;
             seenProfiles.add(userId);
 
-            // Enhanced follower parsing from the entire line
-            const followers = parseFollowerCount(line);
+            // Optimized follower resolution from line only
+            const followers = resolveFollowers(undefined, line);
 
             const lead: InstagramLead = {
               id: `${index}-${userId}-${Date.now()}`,

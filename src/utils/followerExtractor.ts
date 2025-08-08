@@ -12,63 +12,59 @@ export const extractFollowersFromCSS = async (url: string): Promise<number> => {
 // Enhanced follower parsing from text with better regex patterns
 export const parseFollowerCount = (text: string): number => {
   if (!text) return 0;
-  
-  console.log('Parsing follower text:', text);
-  
-  // Enhanced patterns to catch more follower count formats
+
+  // Fast path: number with unit (K/M/B/L)
+  const quickUnit = text.match(/([\d,.]+)\s*([kKmMbBlL])\+?/);
+  if (quickUnit) {
+    let num = parseFloat(quickUnit[1].replace(/,/g, ''));
+    const unit = quickUnit[2].toLowerCase();
+    if (unit === 'k') num *= 1_000;
+    else if (unit === 'm') num *= 1_000_000;
+    else if (unit === 'b') num *= 1_000_000_000;
+    else if (unit === 'l') num *= 100_000; // Lakh
+    const result = Math.round(num);
+    if (result >= 1 && result <= 1_000_000_000) return result;
+  }
+
+  // Fast path: raw number next to the word "followers"
+  const afterFollowers = text.match(/followers?[:\s]*([\d,.]+)\s*([kKmMbBlL])?/i);
+  if (afterFollowers) {
+    let num = parseFloat(afterFollowers[1].replace(/,/g, ''));
+    const unit = afterFollowers[2]?.toLowerCase();
+    if (unit === 'k') num *= 1_000;
+    else if (unit === 'm') num *= 1_000_000;
+    else if (unit === 'b') num *= 1_000_000_000;
+    else if (unit === 'l') num *= 100_000;
+    const result = Math.round(num);
+    if (result >= 1 && result <= 1_000_000_000) return result;
+  }
+
+  // Fallback to robust patterns
   const patterns = [
-    // Standard formats: "1.2K followers", "1,234 followers", etc.
     /([\d,]+\.?\d*)\s*([kKmMbB])\+?\s*followers?/i,
     /([\d,]+\.?\d*)\s*([kKmMbB])\+?\s*follower/i,
-    
-    // Raw numbers with "followers"
     /(\d+(?:,\d{3})*(?:\.\d+)?)\s*followers?/i,
-    
-    // Followers with colon: "followers: 1.2K"
     /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMbB])\+?/i,
-    
-    // Indian format with L (Lakh)
     /([\d,]+\.?\d*)\s*([lL])\+?\s*followers?/i,
-    
-    // Number with units (more specific patterns first)
     /([\d,]+\.?\d*)\s*([kKmMbB])\+?\s*(?![\w])/i,
-    
-    // Just large numbers (with commas) - be more selective
-    /(\d{1,3}(?:,\d{3})+)(?!\s*[a-zA-Z])/,
-    
-    // Just medium numbers (without units) - only if no other numbers found
+    /(\d{1,3}(?:,\d{3})+)(?!\s*[a-zA-Z])/, 
     /(\d{4,})(?!\s*[a-zA-Z])/
   ];
-  
+
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match) {
-      console.log('Found follower match:', match);
       let number = parseFloat(match[1].replace(/,/g, ''));
       const unit = match[2]?.toLowerCase();
-      
-      // Convert based on unit
-      if (unit === 'k') {
-        number *= 1000;
-      } else if (unit === 'm') {
-        number *= 1000000;
-      } else if (unit === 'b') {
-        number *= 1000000000;
-      } else if (unit === 'l') {
-        number *= 100000; // Lakh = 100,000
-      }
-      
+      if (unit === 'k') number *= 1_000;
+      else if (unit === 'm') number *= 1_000_000;
+      else if (unit === 'b') number *= 1_000_000_000;
+      else if (unit === 'l') number *= 100_000;
       const result = Math.round(number);
-      console.log('Parsed followers:', result);
-      
-      // Return only if the number makes sense for Instagram followers
-      if (result >= 1 && result <= 1000000000) {
-        return result;
-      }
+      if (result >= 1 && result <= 1_000_000_000) return result;
     }
   }
-  
-  console.log('No follower count found in text');
+
   return 0;
 };
 
@@ -156,3 +152,31 @@ export const extractProfileInfo = (text: string, url: string): { username: strin
   
   return { username, brandName, confidence, bio };
 };
+
+// Prefer scraped data first, fallback to parsing text; CSS selector extraction should
+// be handled by an external scraper/extension due to CORS.
+export const resolveFollowers = (
+  scrapedFollowers?: number | string,
+  scrapedText?: string
+): number => {
+  // 1) Valid numeric followers from scraped source
+  if (typeof scrapedFollowers === 'number' && scrapedFollowers > 0) {
+    return Math.round(scrapedFollowers);
+  }
+
+  // 2) Followers provided as string (e.g., "1.2K")
+  if (typeof scrapedFollowers === 'string') {
+    const parsed = parseFollowerCount(scrapedFollowers);
+    if (parsed > 0) return parsed;
+  }
+
+  // 3) Parse from any provided text snippet/row
+  if (scrapedText) {
+    const parsed = parseFollowerCount(scrapedText);
+    if (parsed > 0) return parsed;
+  }
+
+  // 4) Fallback: 0 (caller may decide to trigger CSS extraction externally)
+  return 0;
+};
+
