@@ -85,8 +85,6 @@ export class DatabaseStorage implements IStorage {
     minFollowers?: number;
     maxFollowers?: number;
   }): Promise<Profile[]> {
-    let query = db.select().from(profiles);
-    
     const conditions = [];
     
     if (filters?.category) {
@@ -102,11 +100,16 @@ export class DatabaseStorage implements IStorage {
       conditions.push(lte(profiles.followers, filters.maxFollowers));
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-
-    const result = await query.orderBy(desc(profiles.followers));
+    const result = conditions.length > 0
+      ? await db
+          .select()
+          .from(profiles)
+          .where(and(...conditions))
+          .orderBy(desc(profiles.followers))
+      : await db
+          .select()
+          .from(profiles)
+          .orderBy(desc(profiles.followers));
     return result;
   }
 
