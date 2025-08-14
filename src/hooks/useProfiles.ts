@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { InstagramLead } from '@/types/InstagramLead';
 import { useToast } from '@/hooks/use-toast';
 
@@ -37,31 +38,51 @@ export const useProfiles = () => {
   const saveProfilesToDatabase = async (data: SaveSessionData) => {
     setLoading(true);
     try {
-      const response = await fetch('/api/profiles/bulk', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Create scraping session
+      const { data: session, error: sessionError } = await (supabase as any)
+        .from('scraping_sessions')
+        .insert({
           category: data.category,
           city: data.city,
-          confirmedProfiles: data.confirmedProfiles,
-          unconfirmedProfiles: data.unconfirmedProfiles,
-        }),
-      });
+          total_profiles: data.confirmedProfiles.length + data.unconfirmedProfiles.length,
+          confirmed_profiles: data.confirmedProfiles.length,
+          unconfirmed_profiles: data.unconfirmedProfiles.length,
+        })
+        .select()
+        .single();
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (sessionError) throw sessionError;
 
-      const result = await response.json();
+      // Prepare profile data for insertion
+      const allProfiles = [...data.confirmedProfiles, ...data.unconfirmedProfiles];
+      const profilesToInsert = allProfiles.map(profile => ({
+        username: profile.userId,
+        url: profile.url,
+        brand_name: profile.brandName,
+        followers: profile.followers,
+        bio: '', // Will be populated by bio extraction in phase 2
+        category: data.category,
+        city: data.city,
+        confidence: profile.confidence,
+      }));
+
+      // Insert profiles (use upsert to handle duplicates)
+      const { data: insertedProfiles, error: profilesError } = await (supabase as any)
+        .from('profiles')
+        .upsert(profilesToInsert, { 
+          onConflict: 'username',
+          ignoreDuplicates: false 
+        })
+        .select();
+
+      if (profilesError) throw profilesError;
 
       toast({
         title: "Data Saved Successfully!",
-        description: `Saved ${result.profileCount || 0} profiles to database.`,
+        description: `Saved ${insertedProfiles?.length || 0} profiles to database.`,
       });
 
-      return { sessionId: result.sessionId || '', profileCount: result.profileCount || 0 };
+      return { sessionId: session?.id || '', profileCount: insertedProfiles?.length || 0 };
     } catch (error: any) {
       console.error('Error saving profiles:', error);
       toast({
@@ -83,19 +104,24 @@ export const useProfiles = () => {
   }) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (filters?.category) params.append('category', filters.category);
-      if (filters?.city) params.append('city', filters.city);
-      if (filters?.minFollowers) params.append('minFollowers', filters.minFollowers.toString());
-      if (filters?.maxFollowers) params.append('maxFollowers', filters.maxFollowers.toString());
+      let query = (supabase as any).from('profiles').select('*');
 
-      const response = await fetch(`/api/profiles?${params.toString()}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (filters?.category) {
+        query = query.ilike('category', `%${filters.category}%`);
+      }
+      if (filters?.city) {
+        query = query.ilike('city', `%${filters.city}%`);
+      }
+      if (filters?.minFollowers) {
+        query = query.gte('followers', filters.minFollowers);
+      }
+      if (filters?.maxFollowers) {
+        query = query.lte('followers', filters.maxFollowers);
       }
 
-      const data = await response.json();
+      const { data, error } = await query.order('followers', { ascending: false });
+
+      if (error) throw error;
 
       // Convert to InstagramLead format
       return data?.map((profile: DatabaseProfile) => ({
@@ -124,13 +150,15 @@ export const useProfiles = () => {
   const smartSearch = async (query: string): Promise<SmartSearchResult[]> => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/profiles/search?q=${encodeURIComponent(query)}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      // For now, implement basic text search until AI embeddings are ready
+      const { data, error } = await (supabase as any)
+        .from('profiles')
+        .select('*')
+        .or(`brand_name.ilike.%${query}%,bio.ilike.%${query}%,category.ilike.%${query}%`)
+        .order('followers', { ascending: false })
+        .limit(50);
 
-      const data = await response.json();
+      if (error) throw error;
 
       return data?.map((profile: DatabaseProfile) => ({
         profiles: [{
@@ -160,14 +188,20 @@ export const useProfiles = () => {
 
   const getProfileStats = async () => {
     try {
-      const response = await fetch('/api/profiles/stats');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const { data, error } = await (supabase as any)
+        .from('profiles')
+        .select('category, city, confidence');
 
-      const data = await response.json();
-      return data;
+      if (error) throw error;
+
+      const categories = data ? [...new Set(data.map((p: DatabaseProfile) => p.category).filter(Boolean))] : [];
+      const cities = data ? [...new Set(data.map((p: DatabaseProfile) => p.city).filter(Boolean))] : [];
+      
+      return {
+        totalProfiles: data?.length || 0,
+        categories,
+        cities,
+      };
     } catch (error: any) {
       console.error('Error fetching stats:', error);
       return { totalProfiles: 0, categories: [], cities: [] };
