@@ -42,7 +42,7 @@ const VantaBackground = ({ className }: VantaBackgroundProps) => {
 
     vantaEffect.current = BIRDS({
       el: vantaRef.current,
-      THREE: THREE, // Pass THREE.js as a dependency
+      THREE: THREE, // This is the corrected line. It explicitly tells Vanta.js to use the imported THREE.
       mouseControls: true,
       touchControls: true,
       gyroControls: false,
@@ -50,7 +50,7 @@ const VantaBackground = ({ className }: VantaBackgroundProps) => {
       minWidth: 200.0,
       scale: 1.0,
       scaleMobile: 1.0,
-      ...themeColors, // Apply the dynamic colors
+      ...themeColors,
     });
 
     // Cleanup function to destroy the Vanta effect when the component unmounts
