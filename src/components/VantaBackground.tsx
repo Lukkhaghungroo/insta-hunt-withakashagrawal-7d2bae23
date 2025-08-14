@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
-import BIRDS from 'vanta/dist/vanta.dots.min';
-
 import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
 
-interface VantaBackgroundProps {
-  className?: string;
-}
-
-const VantaBackground = ({ className }: VantaBackgroundProps) => {
+const VantaBackground = ({ className }: { className?: string }) => {
   const vantaRef = useRef(null);
   const vantaEffect = useRef<any>(null);
   const { isDark } = useTheme();
@@ -21,41 +14,54 @@ const VantaBackground = ({ className }: VantaBackgroundProps) => {
 
   useEffect(() => {
     if (!mounted) return;
+    
+    let isVantaInitialized = false;
 
-    // Destroy any existing Vanta effect before creating a new one
-    if (vantaEffect.current) {
-      vantaEffect.current.destroy();
-    }
+    // Use dynamic imports to handle the external libraries
+    import('three').then(THREE => {
+      // Expose THREE globally, as Vanta.js expects it
+      // @ts-ignore
+      window.THREE = THREE;
 
-    // Set colors based on the current theme
-    const themeColors = isDark
-      ? {
-          color1: '#7e22ce',
-          color2: '#4a044e',
-          backgroundColor: '#0f0a1a',
+      // Import the Vanta.js effect
+      import('vanta/dist/vanta.dots.min').then(VANTA => {
+        if (vantaRef.current) {
+          // Destroy any existing Vanta effect before creating a new one
+          if (vantaEffect.current) {
+            vantaEffect.current.destroy();
+          }
+
+          const themeColors = isDark
+            ? {
+                color1: '#7e22ce',
+                color2: '#4a044e',
+                backgroundColor: '#0f0a1a',
+              }
+            : {
+                color1: '#c084fc',
+                color2: '#9333ea',
+                backgroundColor: '#f8fafc',
+              };
+
+          vantaEffect.current = VANTA.default({
+            el: vantaRef.current,
+            THREE: THREE, // Explicitly pass THREE to the Vanta effect
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.0,
+            minWidth: 200.0,
+            scale: 1.0,
+            scaleMobile: 1.0,
+            ...themeColors,
+          });
+          isVantaInitialized = true;
         }
-      : {
-          color1: '#c084fc',
-          color2: '#9333ea',
-          backgroundColor: '#f8fafc',
-        };
+      }).catch(error => console.error('Failed to load Vanta.js:', error));
+    }).catch(error => console.error('Failed to load Three.js:', error));
 
-    vantaEffect.current = BIRDS({
-      el: vantaRef.current,
-      THREE: THREE, // This is the corrected line. It explicitly tells Vanta.js to use the imported THREE.
-      mouseControls: true,
-      touchControls: true,
-      gyroControls: false,
-      minHeight: 200.0,
-      minWidth: 200.0,
-      scale: 1.0,
-      scaleMobile: 1.0,
-      ...themeColors,
-    });
-
-    // Cleanup function to destroy the Vanta effect when the component unmounts
     return () => {
-      if (vantaEffect.current) {
+      if (isVantaInitialized && vantaEffect.current) {
         vantaEffect.current.destroy();
       }
     };
