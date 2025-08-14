@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Instagram, Heart, MessageSquare, Share2 } from 'lucide-react';
-import VantaBackground from '@/components/VantaBackground'; // Import the new background component
+import VantaBackground from '@/components/VantaBackground';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -34,10 +34,9 @@ export default function Login() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4">
-      {/* The animated Vanta.js background component */}
+    // Add "dark" class here to force dark mode
+    <div className="flex items-center justify-center min-h-screen p-4 dark">
       <VantaBackground />
-      
       <Card className="w-full max-w-md glass border-white/20 dark:border-white/20 border-gray-200">
         <CardHeader className="text-center">
           <div className="flex flex-col items-center justify-center space-y-4">
