@@ -53,18 +53,26 @@ export const useProfiles = () => {
 
       if (sessionError) throw sessionError;
 
-      // Prepare profile data for insertion
+      // Prepare profile data for insertion with proper data extraction
       const allProfiles = [...data.confirmedProfiles, ...data.unconfirmedProfiles];
-      const profilesToInsert = allProfiles.map(profile => ({
-        username: profile.userId,
-        url: profile.url,
-        brand_name: profile.brandName,
-        followers: profile.followers,
-        bio: '', // Will be populated by bio extraction in phase 2
-        category: data.category,
-        city: data.city,
-        confidence: profile.confidence,
-      }));
+      const profilesToInsert = await Promise.all(
+        allProfiles.map(async (profile) => {
+          // Extract better profile information
+          const extractedData = await extractProfileData(profile.url, profile.userId);
+          
+          return {
+            username: extractedData.username || profile.userId,
+            url: profile.url,
+            brand_name: extractedData.brandName || profile.brandName,
+            followers: extractedData.followers || profile.followers,
+            bio: extractedData.bio || '',
+            category: data.category,
+            city: data.city,
+            confidence: extractedData.confidence || profile.confidence,
+            session_id: session?.id,
+          };
+        })
+      );
 
       // Insert profiles (use upsert to handle duplicates)
       const { data: insertedProfiles, error: profilesError } = await (supabase as any)
@@ -123,7 +131,7 @@ export const useProfiles = () => {
 
       if (error) throw error;
 
-      // Convert to InstagramLead format
+      // Convert to InstagramLead format and include bio
       return data?.map((profile: DatabaseProfile) => ({
         id: profile.id,
         url: profile.url,
@@ -133,6 +141,7 @@ export const useProfiles = () => {
         category: profile.category,
         city: profile.city,
         confidence: profile.confidence,
+        bio: profile.bio, // Include bio data
       })) || [];
     } catch (error: any) {
       console.error('Error fetching profiles:', error);
@@ -170,6 +179,7 @@ export const useProfiles = () => {
           category: profile.category,
           city: profile.city,
           confidence: profile.confidence,
+          bio: profile.bio, // Include bio in search results
         }],
         similarity: 0.8 // Placeholder similarity score
       })) || [];
@@ -208,11 +218,115 @@ export const useProfiles = () => {
     }
   };
 
+  const extractProfileData = async (url: string, username: string) => {
+    try {
+      // Call our edge function to extract profile data
+      const { data, error } = await supabase.functions.invoke('extract-profile-bio', {
+        body: { url, username }
+      });
+
+      if (error) {
+        console.error('Error extracting profile data:', error);
+        return {
+          username,
+          brandName: formatBrandName(username),
+          followers: 0,
+          bio: '',
+          confidence: 'low' as const
+        };
+      }
+
+      return {
+        username: data.username || username,
+        brandName: data.brandName || formatBrandName(username),
+        followers: data.followers || 0,
+        bio: data.bio || '',
+        confidence: data.confidence || 'low' as const
+      };
+    } catch (error) {
+      console.error('Error in extractProfileData:', error);
+      return {
+        username,
+        brandName: formatBrandName(username),
+        followers: 0,
+        bio: '',
+        confidence: 'low' as const
+      };
+    }
+  };
+
+  const formatBrandName = (username: string): string => {
+    if (!username) return 'Unknown';
+    return username
+      .replace(/[._]/g, ' ')
+      .replace(/\b\w/g, char => char.toUpperCase())
+      .trim() || 'Unknown Brand';
+  };
+
+  const updateProfilesWithBio = async () => {
+    setLoading(true);
+    try {
+      // Get profiles with missing bio data
+      const { data: profilesWithoutBio, error } = await (supabase as any)
+        .from('profiles')
+        .select('*')
+        .or('bio.is.null,bio.eq.')
+        .limit(10); // Process in batches
+
+      if (error) throw error;
+
+      if (profilesWithoutBio && profilesWithoutBio.length > 0) {
+        const updatedProfiles = [];
+        
+        for (const profile of profilesWithoutBio) {
+          const extractedData = await extractProfileData(profile.url, profile.username);
+          
+          if (extractedData.bio) {
+            const { error: updateError } = await (supabase as any)
+              .from('profiles')
+              .update({ 
+                bio: extractedData.bio,
+                brand_name: extractedData.brandName,
+                followers: extractedData.followers,
+                confidence: extractedData.confidence
+              })
+              .eq('id', profile.id);
+
+            if (!updateError) {
+              updatedProfiles.push(profile.username);
+            }
+          }
+        }
+
+        toast({
+          title: "Bio Update Complete",
+          description: `Updated bio data for ${updatedProfiles.length} profiles.`,
+        });
+
+        return updatedProfiles.length;
+      }
+
+      return 0;
+    } catch (error: any) {
+      console.error('Error updating profiles with bio:', error);
+      toast({
+        title: "Error Updating Profiles",
+        description: error.message || "Failed to update profile bio data.",
+        variant: "destructive"
+      });
+      return 0;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     saveProfilesToDatabase,
     getAllProfiles,
     smartSearch,
     getProfileStats,
+    extractProfileData,
+    updateProfilesWithBio,
   };
 };

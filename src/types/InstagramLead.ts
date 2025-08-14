@@ -8,4 +8,5 @@ export interface InstagramLead {
   category: string;
   city: string;
   confidence: 'high' | 'medium' | 'low';
+  bio?: string; // Add optional bio field
 }

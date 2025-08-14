@@ -25,7 +25,7 @@ const DatabaseManager = ({ onProfilesLoaded }: DatabaseManagerProps) => {
     maxFollowers: ""
   });
   
-  const { getAllProfiles, getProfileStats, loading } = useProfiles();
+  const { getAllProfiles, getProfileStats, updateProfilesWithBio, loading } = useProfiles();
   const { toast } = useToast();
 
   const loadProfiles = async () => {
@@ -190,6 +190,18 @@ const DatabaseManager = ({ onProfilesLoaded }: DatabaseManagerProps) => {
             <Button onClick={loadStats} variant="outline" disabled={loading}>
               Refresh Stats
             </Button>
+            <Button 
+              onClick={async () => {
+                const updated = await updateProfilesWithBio();
+                if (updated > 0) {
+                  loadProfiles(); // Refresh the view
+                }
+              }} 
+              variant="secondary" 
+              disabled={loading}
+            >
+              Update Bio Data
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -209,6 +221,7 @@ const DatabaseManager = ({ onProfilesLoaded }: DatabaseManagerProps) => {
                   <TableRow>
                     <TableHead>Brand Name</TableHead>
                     <TableHead>Username</TableHead>
+                    <TableHead>Bio</TableHead>
                     <TableHead>Followers</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>City</TableHead>
@@ -224,6 +237,11 @@ const DatabaseManager = ({ onProfilesLoaded }: DatabaseManagerProps) => {
                       </TableCell>
                       <TableCell>
                         <code className="text-sm">@{profile.userId}</code>
+                      </TableCell>
+                      <TableCell className="max-w-xs">
+                        <div className="truncate text-sm text-muted-foreground">
+                          {profile.bio || 'No bio available'}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
