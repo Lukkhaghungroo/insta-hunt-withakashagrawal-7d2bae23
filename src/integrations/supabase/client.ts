@@ -1,6 +1,5 @@
-// client/src/lib/supabaseClient.ts
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/integrations/supabase/types';
+import type { Database } from './types';
 
 // Supabase project configuration
 const SUPABASE_URL = 'https://vpyxyyogujddyhqgapkv.supabase.co';
