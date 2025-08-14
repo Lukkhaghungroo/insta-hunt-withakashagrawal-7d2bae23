@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { useTheme } from '@/contexts/ThemeContext';
+import * as THREE from 'three';
+import BIRDS from 'vanta/dist/vanta.dots.min';
+
+// We no longer need to import useTheme
+// import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
 
-const VantaBackground = ({ className }: { className?: string }) => {
+interface VantaBackgroundProps {
+  className?: string;
+}
+
+const VantaBackground = ({ className }: VantaBackgroundProps) => {
   const vantaRef = useRef(null);
   const vantaEffect = useRef<any>(null);
-  const { isDark } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -14,8 +21,13 @@ const VantaBackground = ({ className }: { className?: string }) => {
 
   useEffect(() => {
     if (!mounted) return;
-    
-    let isVantaInitialized = false;
+
+    // We will hardcode the dark theme colors here
+    const darkThemeColors = {
+      color1: '#7e22ce',
+      color2: '#4a044e',
+      backgroundColor: '#0f0a1a',
+    };
 
     // Use dynamic imports to handle the external libraries
     import('three').then(THREE => {
@@ -31,21 +43,9 @@ const VantaBackground = ({ className }: { className?: string }) => {
             vantaEffect.current.destroy();
           }
 
-          const themeColors = isDark
-            ? {
-                color1: '#7e22ce',
-                color2: '#4a044e',
-                backgroundColor: '#0f0a1a',
-              }
-            : {
-                color1: '#c084fc',
-                color2: '#9333ea',
-                backgroundColor: '#f8fafc',
-              };
-
           vantaEffect.current = VANTA.default({
             el: vantaRef.current,
-            THREE: THREE, // Explicitly pass THREE to the Vanta effect
+            THREE: THREE,
             mouseControls: true,
             touchControls: true,
             gyroControls: false,
@@ -53,19 +53,18 @@ const VantaBackground = ({ className }: { className?: string }) => {
             minWidth: 200.0,
             scale: 1.0,
             scaleMobile: 1.0,
-            ...themeColors,
+            ...darkThemeColors, // Always use the dark theme colors
           });
-          isVantaInitialized = true;
         }
       }).catch(error => console.error('Failed to load Vanta.js:', error));
     }).catch(error => console.error('Failed to load Three.js:', error));
 
     return () => {
-      if (isVantaInitialized && vantaEffect.current) {
+      if (vantaEffect.current) {
         vantaEffect.current.destroy();
       }
     };
-  }, [isDark, mounted]);
+  }, [mounted]); // Remove isDark from the dependency array
 
   return (
     <div
