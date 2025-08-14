@@ -1,9 +1,7 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import Google Fonts for brand name */
-@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400..700&display=swap');
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
@@ -266,12 +264,4 @@ All colors MUST be HSL.
 
 .dark .gothic-glow {
   text-shadow: 0 0 10px rgba(139, 69, 255, 0.5);
-}
-
-/* Custom flowy font for brand name */
-.gothic-cursive-font {
-  font-family: 'Dancing Script', cursive;
-  font-weight: 700;
-  font-size: 2.5rem;
-  line-height: 1;
 }
