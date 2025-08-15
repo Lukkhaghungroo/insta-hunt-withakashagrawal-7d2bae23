@@ -17,6 +17,7 @@ import ComprehensiveQA from "@/components/ComprehensiveQA";
 import { InstagramLead } from "@/types/InstagramLead";
 import { parseFollowerCount, extractUsernameFromUrl, formatBrandName, extractProfileInfo, resolveFollowers } from "@/utils/followerExtractor";
 import { useProfiles } from "@/hooks/useProfiles";
+import { filterAndSortLeads, validateMinFollowers } from "@/utils/dataFiltering";
 
 interface DataHistoryItem {
   id: string;
@@ -37,6 +38,7 @@ const Index = () => {
   const [generatedUrl, setGeneratedUrl] = useState("");
   const [rawData, setRawData] = useState("");
   const [minFollowers, setMinFollowers] = useState("");
+  const [minFollowersError, setMinFollowersError] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [leads, setLeads] = useState<InstagramLead[]>([]);
   const [unconfirmedLeads, setUnconfirmedLeads] = useState<InstagramLead[]>([]);
@@ -281,16 +283,19 @@ const Index = () => {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(false);
     
     const files = Array.from(e.dataTransfer.files);
@@ -343,11 +348,29 @@ const Index = () => {
     setDataHistory(prev => [historyItem, ...prev.slice(0, 9)]); // Keep only last 10 items
   };
 
+  // Handle minimum followers input change with validation
+  const handleMinFollowersChange = (value: string) => {
+    setMinFollowers(value);
+    const validation = validateMinFollowers(value);
+    setMinFollowersError(validation.error || "");
+  };
+
   const cleanAndFilterData = async () => {
     if (!rawData.trim()) {
       toast({
         title: "No Data Found",
         description: "Please paste your scraped data or upload a CSV file first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate minimum followers before processing
+    const validation = validateMinFollowers(minFollowers);
+    if (!validation.isValid) {
+      toast({
+        title: "Invalid Input",
+        description: validation.error,
         variant: "destructive"
       });
       return;
@@ -416,35 +439,9 @@ const Index = () => {
     window.open(analyticsUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const filteredAndSortedLeads = leads
-    .filter(lead => 
-      lead.brandName.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      lead.userId.toLowerCase().includes(searchFilter.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (sortBy === "followers") {
-        return sortOrder === "desc" ? b.followers - a.followers : a.followers - b.followers;
-      } else {
-        return sortOrder === "desc" 
-          ? b.brandName.localeCompare(a.brandName)
-          : a.brandName.localeCompare(b.brandName);
-      }
-    });
-
-  const filteredAndSortedUnconfirmed = unconfirmedLeads
-    .filter(lead => 
-      lead.brandName.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      lead.userId.toLowerCase().includes(searchFilter.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (sortBy === "followers") {
-        return sortOrder === "desc" ? b.followers - a.followers : a.followers - b.followers;
-      } else {
-        return sortOrder === "desc" 
-          ? b.brandName.localeCompare(a.brandName)
-          : a.brandName.localeCompare(b.brandName);
-      }
-    });
+  // Use utility function to reduce code duplication
+  const filteredAndSortedLeads = filterAndSortLeads(leads, searchFilter, sortBy, sortOrder);
+  const filteredAndSortedUnconfirmed = filterAndSortLeads(unconfirmedLeads, searchFilter, sortBy, sortOrder);
 
   const handleExport = (format: "csv" | "excel", includeUnconfirmed: boolean = false) => {
     const dataToExport = includeUnconfirmed 
@@ -709,15 +706,23 @@ const Index = () => {
                 </div>
                 
                 <div className="flex items-center space-x-4 pt-4">
-                  <div className="flex items-center space-x-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-white/90">Minimum Followers (optional):</label>
-                    <Input
-                      type="number"
-                      placeholder="1000"
-                      value={minFollowers}
-                      onChange={(e) => setMinFollowers(e.target.value)}
-                      className="w-32 glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/50"
-                    />
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-white/90">Minimum Followers (optional):</label>
+                      <Input
+                        type="number"
+                        placeholder="1000"
+                        value={minFollowers}
+                        onChange={(e) => handleMinFollowersChange(e.target.value)}
+                        className={`w-32 glass ${minFollowersError 
+                          ? 'border-red-500 dark:border-red-400' 
+                          : 'border-gray-300 dark:border-white/30'
+                        } text-gray-800 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/50`}
+                      />
+                    </div>
+                    {minFollowersError && (
+                      <p className="text-sm text-red-600 dark:text-red-400">{minFollowersError}</p>
+                    )}
                   </div>
                   <Button
                     onClick={cleanAndFilterData}

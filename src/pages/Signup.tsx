@@ -32,8 +32,7 @@ export default function Signup() {
   };
 
   return (
-    // Add "dark" class here to force dark mode
-    <div className="flex items-center justify-center min-h-screen p-4 dark">
+    <div className="flex items-center justify-center min-h-screen p-4">
       <VantaBackground />
       <Card className="w-full max-w-md glass border-white/20 dark:border-white/20 border-gray-200">
         <CardHeader className="text-center">

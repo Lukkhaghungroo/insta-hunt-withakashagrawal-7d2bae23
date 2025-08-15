@@ -32,9 +32,23 @@ const App = () => (
             }
           />
 
-          {/* Auth pages, without the ThemeProvider */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          {/* Auth pages, now with ThemeProvider for consistent theming */}
+          <Route
+            path="/login"
+            element={
+              <ThemeProvider>
+                <Login />
+              </ThemeProvider>
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <ThemeProvider>
+                <Signup />
+              </ThemeProvider>
+            }
+          />
 
           {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
