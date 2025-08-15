@@ -102,7 +102,7 @@ const QATestingSuite = () => {
   };
 
   const testDatabaseConnection = async () => {
-    // Use the central supabase client and check for a basic response
+    // MODIFIED: Use the central supabase client and check for a basic response
     const { error } = await supabase.from('profiles').select('id').limit(1);
     if (error) {
       throw new Error(`Database connection failed: ${error.message}`);
@@ -138,7 +138,7 @@ const QATestingSuite = () => {
   };
 
   const testSmartSearch = async () => {
-    // Use the central supabase client to invoke the edge function
+    // MODIFIED: Use the central supabase client to invoke the edge function
     const { error } = await supabase.functions.invoke('smart-search', {
         body: { query: 'test', limit: 5 },
     });
