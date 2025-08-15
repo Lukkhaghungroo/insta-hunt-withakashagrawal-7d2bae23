@@ -1,5 +1,5 @@
-import { useState, useEffect, lazy, Suspense } from "react";
-import { Filter, Users, MapPin, History, BarChart3, Database, Sparkles, Loader2, Instagram, Search, Copy, CheckCircle, ExternalLink, Upload, AlertTriangle, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Download, Filter, Users, MapPin, Instagram, Loader2, Upload, ExternalLink, Copy, CheckCircle, AlertTriangle, History, BarChart3, Database, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,28 +9,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import ThemeToggle from "@/components/ThemeToggle";
+import DataHistory from "@/components/DataHistory";
+import SmartSearch from "@/components/SmartSearch";
+import DatabaseManager from "@/components/DatabaseManager";
+import QATestingSuite from "@/components/QATestingSuite";
+import ComprehensiveQA from "@/components/ComprehensiveQA";
 import { InstagramLead } from "@/types/InstagramLead";
 import { parseFollowerCount, extractUsernameFromUrl, formatBrandName, extractProfileInfo, resolveFollowers } from "@/utils/followerExtractor";
 import { useProfiles } from "@/hooks/useProfiles";
 import { filterAndSortLeads, validateMinFollowers } from "@/utils/dataFiltering";
-import SearchGeneratorSection from "@/components/SearchGeneratorSection";
-import DataUploadSection from "@/components/DataUploadSection";
-import LeadsTable from "@/components/LeadsTable";
-
-// Lazy load heavy components for better performance
-const DataHistory = lazy(() => import("@/components/DataHistory"));
-const SmartSearch = lazy(() => import("@/components/SmartSearch"));
-const DatabaseManager = lazy(() => import("@/components/DatabaseManager"));
-const QATestingSuite = lazy(() => import("@/components/QATestingSuite"));
-const ComprehensiveQA = lazy(() => import("@/components/ComprehensiveQA"));
-const VantaBackground = lazy(() => import("@/components/VantaBackground"));
-
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center py-8">
-    <Loader2 className="h-6 w-6 animate-spin" />
-    <span className="ml-2">Loading...</span>
-  </div>
-);
 
 interface DataHistoryItem {
   id: string;
@@ -1003,32 +990,24 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="smart-search" className="space-y-6">
-            <Suspense fallback={<LoadingSpinner />}>
-              <SmartSearch onProfilesFound={(profiles) => setLeads(profiles)} />
-            </Suspense>
+            <SmartSearch onProfilesFound={(profiles) => setLeads(profiles)} />
           </TabsContent>
 
           <TabsContent value="database" className="space-y-6">
-            <Suspense fallback={<LoadingSpinner />}>
-              <DatabaseManager onProfilesLoaded={(profiles) => setLeads(profiles)} />
-            </Suspense>
+            <DatabaseManager onProfilesLoaded={(profiles) => setLeads(profiles)} />
           </TabsContent>
 
           <TabsContent value="history" className="space-y-6">
-            <Suspense fallback={<LoadingSpinner />}>
-              <DataHistory 
-                history={dataHistory}
-                onLoadData={loadHistoryData}
-                onDeleteItem={deleteHistoryItem}
-                onExportItem={exportHistoryItem}
-              />
-            </Suspense>
+            <DataHistory 
+              history={dataHistory}
+              onLoadData={loadHistoryData}
+              onDeleteItem={deleteHistoryItem}
+              onExportItem={exportHistoryItem}
+            />
           </TabsContent>
 
           <TabsContent value="qa" className="space-y-6">
-            <Suspense fallback={<LoadingSpinner />}>
-              <ComprehensiveQA />
-            </Suspense>
+            <ComprehensiveQA />
           </TabsContent>
         </Tabs>
       </div>
