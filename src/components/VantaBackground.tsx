@@ -1,9 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
-import BIRDS from 'vanta/dist/vanta.dots.min';
-
-// We no longer need to import useTheme
-// import { useTheme } from '@/contexts/ThemeContext';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { cn } from '@/lib/utils';
 
 interface VantaBackgroundProps {
@@ -22,26 +17,27 @@ const VantaBackground = ({ className }: VantaBackgroundProps) => {
   useEffect(() => {
     if (!mounted) return;
 
-    // We will hardcode the dark theme colors here
-    const darkThemeColors = {
-      color1: '#7e22ce',
-      color2: '#4a044e',
-      backgroundColor: '#0f0a1a',
-    };
+    // Delay loading to improve initial page load
+    const timer = setTimeout(() => {
+      const darkThemeColors = {
+        color1: '#7e22ce',
+        color2: '#4a044e',
+        backgroundColor: '#0f0a1a',
+      };
 
-    // Use dynamic imports to handle the external libraries
-    import('three').then(THREE => {
-      // Expose THREE globally, as Vanta.js expects it
-      // @ts-ignore
-      window.THREE = THREE;
-
-      // Import the Vanta.js effect
-      import('vanta/dist/vanta.dots.min').then(VANTA => {
+      // Use dynamic imports with proper error handling and optimization
+      Promise.all([
+        import('three'),
+        import('vanta/dist/vanta.dots.min')
+      ]).then(([THREE, VANTA]) => {
         if (vantaRef.current) {
-          // Destroy any existing Vanta effect before creating a new one
+          // Destroy any existing Vanta effect
           if (vantaEffect.current) {
             vantaEffect.current.destroy();
           }
+
+          // @ts-ignore - Expose THREE globally for Vanta
+          window.THREE = THREE;
 
           vantaEffect.current = VANTA.default({
             el: vantaRef.current,
@@ -51,20 +47,23 @@ const VantaBackground = ({ className }: VantaBackgroundProps) => {
             gyroControls: false,
             minHeight: 200.0,
             minWidth: 200.0,
-            scale: 1.0,
-            scaleMobile: 1.0,
-            ...darkThemeColors, // Always use the dark theme colors
+            scale: 0.8, // Reduced for better performance
+            scaleMobile: 0.5, // Much smaller on mobile
+            ...darkThemeColors,
           });
         }
-      }).catch(error => console.error('Failed to load Vanta.js:', error));
-    }).catch(error => console.error('Failed to load Three.js:', error));
+      }).catch(error => {
+        console.warn('Vanta effect failed to load, using fallback:', error);
+      });
+    }, 100); // Small delay to not block initial render
 
     return () => {
+      clearTimeout(timer);
       if (vantaEffect.current) {
         vantaEffect.current.destroy();
       }
     };
-  }, [mounted]); // Remove isDark from the dependency array
+  }, [mounted]);
 
   return (
     <div

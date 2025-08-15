@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Instagram, Heart, MessageSquare, Share2 } from 'lucide-react';
-import VantaBackground from '@/components/VantaBackground';
+import LightweightBackground from '@/components/LightweightBackground';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ export default function Signup() {
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
-      <VantaBackground />
+      <LightweightBackground />
       <Card className="w-full max-w-md glass border-white/20 dark:border-white/20 border-gray-200">
         <CardHeader className="text-center">
           <div className="flex flex-col items-center justify-center space-y-4">

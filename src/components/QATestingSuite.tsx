@@ -6,9 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useProfiles } from "@/hooks/useProfiles";
-import { supabase } from "@/integrations/supabase/client"; // Import the central supabase client
-import { parseFollowerCount } from '@/utils/followerExtractor';
-
 
 interface QATest {
   id: string;
@@ -46,8 +43,8 @@ const QATestingSuite = () => {
     },
     {
       id: 'ui-responsive',
-      name: 'UI Component Check',
-      description: 'Verify essential UI components are rendered',
+      name: 'Responsive UI',
+      description: 'Test mobile and desktop UI components',
       status: 'pending'
     },
     {
@@ -62,8 +59,8 @@ const QATestingSuite = () => {
   const { toast } = useToast();
 
   const updateTestStatus = (testId: string, status: QATest['status'], result?: string) => {
-    setTests(prev => prev.map(test =>
-      test.id === testId
+    setTests(prev => prev.map(test => 
+      test.id === testId 
         ? { ...test, status, result }
         : test
     ));
@@ -102,10 +99,14 @@ const QATestingSuite = () => {
   };
 
   const testDatabaseConnection = async () => {
-    // MODIFIED: Use the central supabase client and check for a basic response
-    const { error } = await supabase.from('profiles').select('id').limit(1);
-    if (error) {
-      throw new Error(`Database connection failed: ${error.message}`);
+    // Test database connection by trying to fetch stats
+    const response = await fetch(`https://vpyxyyogujddyhqgapkv.supabase.co/rest/v1/profiles?select=count`, {
+      headers: {
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZweXh5eW9ndWpkZHlocWdhcGt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1NjY1MDAsImV4cCI6MjA2NzE0MjUwMH0.ESldrrW05CiRdRyWrablbCs2yM_MeIjDDF6MZ96zZ48'
+      }
+    });
+    if (!response.ok) {
+      throw new Error('Database connection failed');
     }
   };
 
@@ -125,7 +126,7 @@ const QATestingSuite = () => {
       }],
       unconfirmedProfiles: []
     };
-
+    
     const result = await saveProfilesToDatabase(testProfile);
     if (!result.sessionId) {
       throw new Error('Profile saving failed');
@@ -138,26 +139,32 @@ const QATestingSuite = () => {
   };
 
   const testSmartSearch = async () => {
-    // MODIFIED: Use the central supabase client to invoke the edge function
-    const { error } = await supabase.functions.invoke('smart-search', {
-        body: { query: 'test', limit: 5 },
+    const response = await fetch(`https://vpyxyyogujddyhqgapkv.supabase.co/functions/v1/smart-search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZweXh5eW9ndWpkZHlocWdhcGt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1NjY1MDAsImV4cCI6MjA2NzE0MjUwMH0.ESldrrW05CiRdRyWrablbCs2yM_MeIjDDF6MZ96zZ48'
+      },
+      body: JSON.stringify({
+        query: 'test',
+        limit: 5
+      })
     });
-
-    if (error) {
-        throw new Error(`Smart search API failed: ${error.message}`);
+    
+    if (!response.ok) {
+      throw new Error('Smart search API failed');
     }
   };
 
   const testUIResponsiveness = async () => {
-    // This test checks for the presence of key UI elements.
-    // Note: For true visual and responsiveness testing, consider tools like Storybook or Cypress.
+    // Test if main components exist in DOM
     const elements = [
       'input[placeholder*="category"]',
-      'input[placeholder*="city"]',
+      'input[placeholder*="city"]', 
       'textarea[placeholder*="data"]',
       'button[type="button"]'
     ];
-
+    
     for (const selector of elements) {
       if (!document.querySelector(selector)) {
         throw new Error(`UI element missing: ${selector}`);
@@ -167,12 +174,14 @@ const QATestingSuite = () => {
 
   const testDataParsing = async () => {
     // Test data parsing with sample data
+    const { parseFollowerCount } = await import('@/utils/followerExtractor');
+    
     const testCases = [
       { input: '1.2M followers', expected: 1200000 },
       { input: '50K followers', expected: 50000 },
       { input: '999 followers', expected: 999 }
     ];
-
+    
     for (const testCase of testCases) {
       const result = parseFollowerCount(testCase.input);
       if (result !== testCase.expected) {
@@ -189,7 +198,7 @@ const QATestingSuite = () => {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
-
+    
     const failedTests = tests.filter(t => t.status === 'failed');
     if (failedTests.length === 0) {
       toast({
@@ -248,7 +257,7 @@ const QATestingSuite = () => {
             Run All Tests
           </Button>
         </div>
-
+        
         <div className="rounded-md border">
           <Table>
             <TableHeader>

@@ -7,23 +7,15 @@ export default function PrivateRoute({ children }: { children: JSX.Element }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          navigate("/login");
-        }
-      } catch (error) {
-        console.error("Error checking auth session:", error);
-        navigate("/login"); // Redirect to login on error
-      } finally {
-        setLoading(false);
+    // Check if user is logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/login");
       }
-    };
+      setLoading(false);
+    });
 
-    checkSession();
-
-    // Listen for auth state changes (e.g., logout)
+    // Listen for logout events
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (!session) {
@@ -37,10 +29,7 @@ export default function PrivateRoute({ children }: { children: JSX.Element }) {
     };
   }, [navigate]);
 
-  if (loading) {
-    // You can replace this with a proper loading spinner component
-    return <p className="text-center p-4">Loading...</p>;
-  }
+  if (loading) return <p>Loading...</p>;
 
   return children;
 }
