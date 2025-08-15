@@ -2,10 +2,22 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { InstagramLead } from '@/types/InstagramLead';
 import { useToast } from '@/hooks/use-toast';
-import type { Database } from '@/integrations/supabase/types';
 
-// Use the proper Supabase database types
-type DatabaseProfile = Database['public']['Tables']['profiles']['Row'];
+// Database types
+interface DatabaseProfile {
+  id: string;
+  username: string;
+  url: string;
+  brand_name: string;
+  followers: number;
+  bio: string;
+  category: string;
+  city: string;
+  confidence: 'high' | 'medium' | 'low';
+  created_at: string;
+  updated_at: string;
+  bio_embedding?: number[];
+}
 
 interface SaveSessionData {
   category: string;
@@ -27,7 +39,7 @@ export const useProfiles = () => {
     setLoading(true);
     try {
       // Create scraping session
-      const { data: session, error: sessionError } = await supabase
+      const { data: session, error: sessionError } = await (supabase as any)
         .from('scraping_sessions')
         .insert({
           category: data.category,
@@ -63,7 +75,7 @@ export const useProfiles = () => {
       );
 
       // Insert profiles (use upsert to handle duplicates)
-      const { data: insertedProfiles, error: profilesError } = await supabase
+      const { data: insertedProfiles, error: profilesError } = await (supabase as any)
         .from('profiles')
         .upsert(profilesToInsert, { 
           onConflict: 'username',
@@ -100,7 +112,7 @@ export const useProfiles = () => {
   }) => {
     setLoading(true);
     try {
-      let query = supabase.from('profiles').select('*');
+      let query = (supabase as any).from('profiles').select('id, brand_name, userId, bio, followers, category, city, confidence');
 
       if (filters?.category) {
         query = query.ilike('category', `%${filters.category}%`);
@@ -120,16 +132,16 @@ export const useProfiles = () => {
       if (error) throw error;
 
       // Convert to InstagramLead format and include bio
-      return data?.map((profile) => ({
+      return data?.map((profile: DatabaseProfile) => ({
         id: profile.id,
         url: profile.url,
-        brandName: profile.brand_name || 'Unknown Brand',
+        brandName: profile.brand_name,
         userId: profile.username,
-        followers: profile.followers || 0,
-        category: profile.category || 'Unknown',
-        city: profile.city || 'Unknown',
-        confidence: (profile.confidence as 'high' | 'medium' | 'low') || 'low',
-        bio: profile.bio || '', // Include bio data
+        followers: profile.followers,
+        category: profile.category,
+        city: profile.city,
+        confidence: profile.confidence,
+        bio: profile.bio, // Include bio data
       })) || [];
     } catch (error: any) {
       console.error('Error fetching profiles:', error);
@@ -148,7 +160,7 @@ export const useProfiles = () => {
     setLoading(true);
     try {
       // For now, implement basic text search until AI embeddings are ready
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('profiles')
         .select('*')
         .or(`brand_name.ilike.%${query}%,bio.ilike.%${query}%,category.ilike.%${query}%`)
@@ -157,17 +169,17 @@ export const useProfiles = () => {
 
       if (error) throw error;
 
-      return data?.map((profile) => ({
+      return data?.map((profile: DatabaseProfile) => ({
         profiles: [{
           id: profile.id,
           url: profile.url,
-          brandName: profile.brand_name || 'Unknown Brand',
+          brandName: profile.brand_name,
           userId: profile.username,
-          followers: profile.followers || 0,
-          category: profile.category || 'Unknown',
-          city: profile.city || 'Unknown',
-          confidence: (profile.confidence as 'high' | 'medium' | 'low') || 'low',
-          bio: profile.bio || '', // Include bio in search results
+          followers: profile.followers,
+          category: profile.category,
+          city: profile.city,
+          confidence: profile.confidence,
+          bio: profile.bio, // Include bio in search results
         }],
         similarity: 0.8 // Placeholder similarity score
       })) || [];
@@ -186,14 +198,14 @@ export const useProfiles = () => {
 
   const getProfileStats = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('profiles')
         .select('category, city, confidence');
 
       if (error) throw error;
 
-      const categories = data ? [...new Set(data.map((p) => p.category).filter(Boolean))] : [];
-      const cities = data ? [...new Set(data.map((p) => p.city).filter(Boolean))] : [];
+      const categories = data ? [...new Set(data.map((p: DatabaseProfile) => p.category).filter(Boolean))] : [];
+      const cities = data ? [...new Set(data.map((p: DatabaseProfile) => p.city).filter(Boolean))] : [];
       
       return {
         totalProfiles: data?.length || 0,
@@ -208,40 +220,50 @@ export const useProfiles = () => {
 
   const extractProfileData = async (url: string, username: string) => {
     try {
-      // Call our edge function to extract profile data
-      const { data, error } = await supabase.functions.invoke('extract-profile-bio', {
-        body: { url, username }
-      });
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      if (error) {
-        console.error('Error extracting profile data:', error);
+        if (sessionError) throw new Error("Could not get user session.");
+        if (!session) throw new Error("User is not authenticated. Please log in.");
+
+        const { data, error } = await supabase.functions.invoke('extract-profile-bio', {
+            body: { url, username }
+        });
+
+        if (error) {
+            console.error('Error extracting profile data:', error);
+            return {
+                username,
+                brandName: formatBrandName(username),
+                followers: 0,
+                bio: '',
+                confidence: 'low' as const
+            };
+        }
+
         return {
-          username,
-          brandName: formatBrandName(username),
-          followers: 0,
-          bio: '',
-          confidence: 'low' as const
+            username: data.username || username,
+            brandName: data.brandName || formatBrandName(username),
+            followers: data.followers || 0,
+            bio: data.bio || '',
+            confidence: data.confidence || 'low' as const
         };
-      }
-
-      return {
-        username: data.username || username,
-        brandName: data.brandName || formatBrandName(username),
-        followers: data.followers || 0,
-        bio: data.bio || '',
-        confidence: data.confidence || 'low' as const
-      };
     } catch (error) {
-      console.error('Error in extractProfileData:', error);
-      return {
-        username,
-        brandName: formatBrandName(username),
-        followers: 0,
-        bio: '',
-        confidence: 'low' as const
-      };
+        console.error('Error in extractProfileData:', error);
+        toast({
+            title: "Authentication Error",
+            description: error instanceof Error ? error.message : "An unknown error occurred.",
+            variant: "destructive"
+        });
+        return {
+            username,
+            brandName: formatBrandName(username),
+            followers: 0,
+            bio: '',
+            confidence: 'low' as const
+        };
     }
-  };
+};
+
 
   const formatBrandName = (username: string): string => {
     if (!username) return 'Unknown';
@@ -255,7 +277,7 @@ export const useProfiles = () => {
     setLoading(true);
     try {
       // Get profiles with missing bio data
-      const { data: profilesWithoutBio, error } = await supabase
+      const { data: profilesWithoutBio, error } = await (supabase as any)
         .from('profiles')
         .select('*')
         .or('bio.is.null,bio.eq.')
@@ -270,7 +292,7 @@ export const useProfiles = () => {
           const extractedData = await extractProfileData(profile.url, profile.username);
           
           if (extractedData.bio) {
-            const { error: updateError } = await supabase
+            const { error: updateError } = await (supabase as any)
               .from('profiles')
               .update({ 
                 bio: extractedData.bio,
