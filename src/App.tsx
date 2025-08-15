@@ -18,28 +18,42 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <ThemeProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Protected route for the main app UI */}
-            <Route
-              path="/"
-              element={
+      <BrowserRouter>
+        <Routes>
+          {/* Protected route, wrapped in ThemeProvider for the main app UI */}
+          <Route
+            path="/"
+            element={
+              <ThemeProvider>
                 <PrivateRoute>
                   <Index />
                 </PrivateRoute>
-              }
-            />
+              </ThemeProvider>
+            }
+          />
 
-            {/* Auth pages */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+          {/* Auth pages, now with ThemeProvider for consistent theming */}
+          <Route
+            path="/login"
+            element={
+              <ThemeProvider>
+                <Login />
+              </ThemeProvider>
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <ThemeProvider>
+                <Signup />
+              </ThemeProvider>
+            }
+          />
 
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </ThemeProvider>
+          {/* Catch-all */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
