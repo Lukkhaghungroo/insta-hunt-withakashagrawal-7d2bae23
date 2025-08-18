@@ -62,13 +62,10 @@ export const useProfiles = () => {
         })
       );
 
-      // Insert profiles (use upsert to handle duplicates)
+      // Insert profiles (use regular insert, let database handle duplicates)
       const { data: insertedProfiles, error: profilesError } = await supabase
         .from('profiles')
-        .upsert(profilesToInsert, { 
-          onConflict: 'username',
-          ignoreDuplicates: false 
-        })
+        .insert(profilesToInsert)
         .select();
 
       if (profilesError) throw profilesError;
