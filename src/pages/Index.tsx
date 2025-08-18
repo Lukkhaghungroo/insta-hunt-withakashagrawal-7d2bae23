@@ -695,11 +695,17 @@ const Index = () => {
                         className="hidden"
                         id="file-upload"
                       />
-                      <label htmlFor="file-upload">
-                        <Button variant="outline" size="sm" className="cursor-pointer glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="cursor-pointer glass border-gray-300 dark:border-white/30 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+                        onClick={() => document.getElementById('file-upload')?.click()}
+                        asChild
+                      >
+                        <label htmlFor="file-upload" className="cursor-pointer">
                           Choose File
-                        </Button>
-                      </label>
+                        </label>
+                      </Button>
                       <p className="text-xs text-gray-500 dark:text-white/50 mt-2">CSV or TXT files only</p>
                     </div>
                   </div>

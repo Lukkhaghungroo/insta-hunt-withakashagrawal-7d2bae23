@@ -12,59 +12,66 @@ export const extractFollowersFromCSS = async (url: string): Promise<number> => {
 // Enhanced follower parsing from text with better regex patterns
 export const parseFollowerCount = (text: string): number => {
   if (!text) return 0;
+  
+  console.log('Parsing follower count from text:', text.substring(0, 200) + '...');
 
-  // Fast path: number with unit (K/M/B/L)
-  const quickUnit = text.match(/([\d,.]+)\s*([kKmMbBlL])\+?/);
-  if (quickUnit) {
-    let num = parseFloat(quickUnit[1].replace(/,/g, ''));
-    const unit = quickUnit[2].toLowerCase();
-    if (unit === 'k') num *= 1_000;
-    else if (unit === 'm') num *= 1_000_000;
-    else if (unit === 'b') num *= 1_000_000_000;
-    else if (unit === 'l') num *= 100_000; // Lakh
-    const result = Math.round(num);
-    if (result >= 1 && result <= 1_000_000_000) return result;
-  }
+  // Clean the text for better parsing
+  const cleanedText = text.replace(/\s+/g, ' ').trim();
 
-  // Fast path: raw number next to the word "followers"
-  const afterFollowers = text.match(/followers?[:\s]*([\d,.]+)\s*([kKmMbBlL])?/i);
-  if (afterFollowers) {
-    let num = parseFloat(afterFollowers[1].replace(/,/g, ''));
-    const unit = afterFollowers[2]?.toLowerCase();
-    if (unit === 'k') num *= 1_000;
-    else if (unit === 'm') num *= 1_000_000;
-    else if (unit === 'b') num *= 1_000_000_000;
-    else if (unit === 'l') num *= 100_000;
-    const result = Math.round(num);
-    if (result >= 1 && result <= 1_000_000_000) return result;
-  }
-
-  // Fallback to robust patterns
+  // Enhanced patterns with more specific targeting
   const patterns = [
-    /([\d,]+\.?\d*)\s*([kKmMbB])\+?\s*followers?/i,
-    /([\d,]+\.?\d*)\s*([kKmMbB])\+?\s*follower/i,
+    // Direct followers count with units (most common)
+    /([\d,]+(?:\.\d+)?)\s*([kKmMbBlL])\s*followers?/i,
+    /([\d,]+(?:\.\d+)?)\s*([kKmMbBlL])\+?\s*followers?/i,
+    
+    // Numbers before "followers" keyword
+    /followers?[:\s-]+([\d,]+(?:\.\d+)?)\s*([kKmMbBlL])?/i,
+    /([\d,]+(?:\.\d+)?)\s*([kKmMbBlL])?\s*followers?/i,
+    
+    // Raw numbers in follower context
     /(\d+(?:,\d{3})*(?:\.\d+)?)\s*followers?/i,
-    /followers?[:\s]*(\d+(?:,\d{3})*(?:\.\d+)?)\s*([kKmMbB])\+?/i,
-    /([\d,]+\.?\d*)\s*([lL])\+?\s*followers?/i,
-    /([\d,]+\.?\d*)\s*([kKmMbB])\+?\s*(?![\w])/i,
-    /(\d{1,3}(?:,\d{3})+)(?!\s*[a-zA-Z])/, 
-    /(\d{4,})(?!\s*[a-zA-Z])/
+    /followers?[:\s-]+(\d+(?:,\d{3})*(?:\.\d+)?)/i,
+    
+    // CSV column parsing - look for follower-like numbers
+    /(?:followers?|likes|audience)[:\s,]*([\d,]+(?:\.\d+)?)\s*([kKmMbBlL])?/i,
+    
+    // General number with units (broader catch)
+    /([\d,]+(?:\.\d+)?)\s*([kKmMbBlL])\b/i,
+    
+    // Large numbers without context (last resort)
+    /(\d{1,3}(?:,\d{3}){1,3})(?!\s*[a-zA-Z])/,
+    /(\d{4,8})(?!\s*[a-zA-Z])/
   ];
 
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
+  for (let i = 0; i < patterns.length; i++) {
+    const pattern = patterns[i];
+    const match = cleanedText.match(pattern);
+    
     if (match) {
+      console.log(`Pattern ${i + 1} matched:`, match[0]);
       let number = parseFloat(match[1].replace(/,/g, ''));
       const unit = match[2]?.toLowerCase();
-      if (unit === 'k') number *= 1_000;
-      else if (unit === 'm') number *= 1_000_000;
-      else if (unit === 'b') number *= 1_000_000_000;
-      else if (unit === 'l') number *= 100_000;
+      
+      if (unit) {
+        switch (unit) {
+          case 'k': number *= 1_000; break;
+          case 'm': number *= 1_000_000; break;
+          case 'b': number *= 1_000_000_000; break;
+          case 'l': number *= 100_000; break; // Lakh
+        }
+      }
+      
       const result = Math.round(number);
-      if (result >= 1 && result <= 1_000_000_000) return result;
+      console.log(`Parsed result: ${result}`);
+      
+      // Validate reasonable follower count range
+      if (result >= 1 && result <= 1_000_000_000) {
+        return result;
+      }
     }
   }
 
+  console.log('No follower count found in text');
   return 0;
 };
 
