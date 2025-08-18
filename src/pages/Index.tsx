@@ -18,6 +18,7 @@ import { InstagramLead } from "@/types/InstagramLead";
 import { parseFollowerCount, extractUsernameFromUrl, formatBrandName, extractProfileInfo, resolveFollowers } from "@/utils/followerExtractor";
 import { useProfiles } from "@/hooks/useProfiles";
 import { filterAndSortLeads, validateMinFollowers } from "@/utils/dataFiltering";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface DataHistoryItem {
   id: string;
@@ -50,6 +51,7 @@ const Index = () => {
   const [dataHistory, setDataHistory] = useState<DataHistoryItem[]>([]);
   const { toast } = useToast();
   const { saveProfilesToDatabase, loading: dbLoading } = useProfiles();
+  const { isAdmin, loading: roleLoading } = useUserRole();
 
   // Load data history from localStorage on component mount
   useEffect(() => {
@@ -557,12 +559,12 @@ const Index = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         <Tabs defaultValue="generator" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 glass border-white/20 dark:border-white/20 border-gray-200">
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'} glass border-white/20 dark:border-white/20 border-gray-200`}>
             <TabsTrigger value="generator" className="text-gray-800 dark:text-white">Fresh Scrape</TabsTrigger>
             <TabsTrigger value="smart-search" className="text-gray-800 dark:text-white">Smart Search</TabsTrigger>
             <TabsTrigger value="database" className="text-gray-800 dark:text-white">Database</TabsTrigger>
             <TabsTrigger value="history" className="text-gray-800 dark:text-white">History</TabsTrigger>
-            <TabsTrigger value="qa" className="text-gray-800 dark:text-white">QA Tests</TabsTrigger>
+            {isAdmin && <TabsTrigger value="qa" className="text-gray-800 dark:text-white">QA Tests</TabsTrigger>}
           </TabsList>
           
           <TabsContent value="generator" className="space-y-8">
@@ -1012,9 +1014,11 @@ const Index = () => {
             />
           </TabsContent>
 
-          <TabsContent value="qa" className="space-y-6">
-            <ComprehensiveQA />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="qa" className="space-y-6">
+              <ComprehensiveQA />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
